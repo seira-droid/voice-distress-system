@@ -28,31 +28,74 @@ Database: Supabase (PostgreSQL + Auth + RLS)
 Frontend (optional): Streamlit / Postman testing
 Deployment: Railway
 Documentation: Swagger (drf-spectacular)
-5. Data Model Sketch
-Users Table
-id (UUID)
-name
-email
-created_at
-Voice Sessions Table
-id
-user_id (FK → Users)
-audio_features (JSON)
-timestamp
-Risk Analysis Table
-id
-session_id (FK)
-risk_score
-detected_emotions
-wake_word_detected (boolean)
-context_data (JSON)
-Alerts Table
-id
-user_id
-risk_level
-message
-status (sent/pending)
-created_at
+
+5.Data Model Sketch (Tables + Relationships)
+
+i. users
+
+Stores registered users.
+
+id (UUID, Primary Key)
+name (string)
+phone (string)
+email (string)
+created_at (timestamp)
+ii. audio_sessions
+
+Stores each recorded voice input session.
+
+id (UUID, Primary Key)
+user_id (Foreign Key → users.id)
+audio_path (string)
+duration (float)
+created_at (timestamp)
+iii. audio_features
+
+Stores extracted audio characteristics using Librosa.
+
+id (UUID, Primary Key)
+session_id (Foreign Key → audio_sessions.id)
+pitch (float)
+energy (float)
+tremor (float)
+speech_rate (float)
+iv. risk_scores
+
+Stores computed risk analysis results.
+
+id (UUID, Primary Key)
+session_id (Foreign Key → audio_sessions.id)
+score (integer, 0–100)
+level (safe / monitor / emergency)
+explanation (text)
+created_at (timestamp)
+v. alerts
+
+Stores emergency alert logs sent via Telegram or other channels.
+
+id (UUID, Primary Key)
+user_id (Foreign Key → users.id)
+session_id (Foreign Key → audio_sessions.id)
+alert_type (telegram / sms / call)
+message (text)
+status (sent / failed)
+created_at (timestamp)
+vi. ai_responses
+
+Stores AI-generated explanations and recommendations.
+
+id (UUID, Primary Key)
+session_id (Foreign Key → audio_sessions.id)
+summary (text)
+recommendation (text)
+model_used (string)
+created_at (timestamp)
+🔗 Relationship Flow
+
+users → audio_sessions → audio_features → risk_scores → alerts → ai_responses
+
+
+
 6. Core System Flow
 
 Voice Input
