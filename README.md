@@ -99,5 +99,12 @@ MVP Phase – Backend Design + AI Pipeline Definition
 
 ---
 
-## 📌 Author
-Voice Distress Detection System Project
+
+## Feature 1 - Emergency Contact API
+
+- Feature 1 API successfully implemented using Django REST Framework
+- JWT authentication integrated
+- Full CRUD operations (Create, Read, Update, Delete) completed via ViewSet
+- API tested using Postman
+- Postman collection exported and added to repository
+- Code merged into main branch and pushed to GitHub
