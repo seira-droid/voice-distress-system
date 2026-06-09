@@ -1,3 +1,11 @@
-from django.shortcuts import render
+from rest_framework import viewsets
+from rest_framework.permissions import IsAuthenticated
 
-# Create your views here.
+from .models import EmergencyContact
+from .serializers import EmergencyContactSerializer
+
+
+class EmergencyContactViewSet(viewsets.ModelViewSet):
+    queryset = EmergencyContact.objects.all()
+    serializer_class = EmergencyContactSerializer
+    permission_classes = [IsAuthenticated]

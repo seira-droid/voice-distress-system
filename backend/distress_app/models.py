@@ -2,6 +2,8 @@ from django.db import models
 
 
 class EmergencyContact(models.Model):
+    user_id = models.UUIDField(null=True, blank=True, db_index=True)
+
     name = models.CharField(max_length=100)
     phone_number = models.CharField(max_length=20)
     relationship = models.CharField(max_length=50)
@@ -11,6 +13,8 @@ class EmergencyContact(models.Model):
 
 
 class VoiceEvent(models.Model):
+    user_id = models.UUIDField(null=True, blank=True, db_index=True)
+
     audio_file = models.CharField(max_length=255)
     distress_keyword = models.CharField(max_length=100)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -20,10 +24,9 @@ class VoiceEvent(models.Model):
 
 
 class RiskAssessment(models.Model):
-    voice_event = models.ForeignKey(
-        VoiceEvent,
-        on_delete=models.CASCADE
-    )
+    user_id = models.UUIDField(null=True, blank=True, db_index=True)
+
+    voice_event = models.ForeignKey(VoiceEvent, on_delete=models.CASCADE)
     risk_score = models.FloatField()
     risk_level = models.CharField(max_length=20)
     ai_explanation = models.TextField()
@@ -33,14 +36,10 @@ class RiskAssessment(models.Model):
 
 
 class AlertLog(models.Model):
-    voice_event = models.ForeignKey(
-        VoiceEvent,
-        on_delete=models.CASCADE
-    )
-    contact = models.ForeignKey(
-        EmergencyContact,
-        on_delete=models.CASCADE
-    )
+    user_id = models.UUIDField(null=True, blank=True, db_index=True)
+
+    voice_event = models.ForeignKey(VoiceEvent, on_delete=models.CASCADE)
+    contact = models.ForeignKey(EmergencyContact, on_delete=models.CASCADE)
     message_sent = models.TextField()
     sent_at = models.DateTimeField(auto_now_add=True)
 
