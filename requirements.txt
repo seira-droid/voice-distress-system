@@ -22,3 +22,4 @@ supabase==2.31.0
 python-dotenv
 dj-database-url
 django-filter
+djangorestframework-simplejwt
