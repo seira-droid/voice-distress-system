@@ -17,3 +17,4 @@ tzdata==2026.2
 uritemplate==4.2.0
 pytest
 supabase==2.31.0
+python-dotenv
