@@ -24,8 +24,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Set working directory
-        run: cd backend
+      - name: Set CI environment variables
+        run: echo "DATABASE_URL=sqlite:///db.sqlite3" >> $GITHUB_ENV
 
       - name: Run migrations
         working-directory: backend
