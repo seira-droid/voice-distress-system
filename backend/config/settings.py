@@ -1,6 +1,9 @@
 from pathlib import Path
 import environ
 import dj_database_url
+import os
+
+SECRET_KEY = os.getenv("SECRET_KEY")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
