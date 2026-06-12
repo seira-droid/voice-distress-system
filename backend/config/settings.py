@@ -61,9 +61,13 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 # DATABASE
 DATABASES = {
-    "default": dj_database_url.parse(env("DATABASE_URL"))
+    "default": dj_database_url.parse(
+        env(
+            "DATABASE_URL",
+            default="sqlite:///db.sqlite3"
+        )
+    )
 }
-
 
 # PASSWORD VALIDATION
 AUTH_PASSWORD_VALIDATORS = [
