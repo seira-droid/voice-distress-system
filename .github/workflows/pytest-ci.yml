@@ -14,6 +14,7 @@ jobs:
       DJANGO_SETTINGS_MODULE: config.settings
       PYTHONPATH: ${{ github.workspace }}/backend
       SECRET_KEY: "v(z%^8(=n16&n-*f*)=7xvx=j=n$m$@kvqducupj2ul4r$e0bs"
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
