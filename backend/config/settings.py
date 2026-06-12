@@ -1,9 +1,6 @@
 from pathlib import Path
 import environ
 import dj_database_url
-import os
-
-SECRET_KEY = os.getenv("SECRET_KEY")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -11,13 +8,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 env = environ.Env()
 environ.Env.read_env(BASE_DIR / ".env")
 
-
 # SECURITY
 SECRET_KEY = env("SECRET_KEY")
 DEBUG = env.bool("DEBUG", default=True)
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[])
-
-
 # APPLICATIONS
 INSTALLED_APPS = [
     'django.contrib.admin',

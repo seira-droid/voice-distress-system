@@ -109,3 +109,6 @@ MVP Phase – Backend Design + AI Pipeline Definition
 - Postman collection exported and added to repository
 - Code merged into main branch and pushed to GitHub
 "# CI test trigger" 
+## CI Status
+
+![Django Pytest CI](https://github.com/seira-droid/voice-distress-system/actions/workflows/pytest-ci.yml/badge.svg)
