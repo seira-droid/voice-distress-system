@@ -18,41 +18,25 @@ def upload_file(file):
     ext = os.path.splitext(file.name)[1]
     filename = f"{uuid.uuid4()}{ext}"
 
-    tmp_path = None
+    file_content = file.read()
 
-    try:
-        # Create temp file
-        with tempfile.NamedTemporaryFile(delete=False) as tmp:
-            for chunk in file.chunks():
-                tmp.write(chunk)
-            tmp_path = tmp.name
+    supabase.storage.from_("distress-files").upload(
+        path=filename,
+        file=file_content,
+        file_options={
+    "content-type": "audio/wav"
+}
+    )
 
-        # Upload to Supabase
-        supabase.storage.from_("distress-files").upload(
-            filename,
-            tmp_path,
-            {
-                "content-type": file.content_type
-            }
-        )
+    public_url = supabase.storage.from_("distress-files").get_public_url(
+        filename
+    )
 
-        # Get public URL safely
-        bucket = supabase.storage.from_("distress-files")
-        public_url_data = bucket.get_public_url(filename)
+    if isinstance(public_url, dict):
+        public_url = public_url.get("publicUrl")
 
-        # Normalize URL (important fix)
-        url = (
-            public_url_data.get("publicUrl")
-            if isinstance(public_url_data, dict)
-            else public_url_data
-        )
-
-        return {
-            "message": "File uploaded successfully",
-            "file_name": filename,
-            "url": url
-        }
-
-    finally:
-        if tmp_path and os.path.exists(tmp_path):
-            os.remove(tmp_path)
+    return {
+        "message": "File uploaded successfully",
+        "file_name": filename,
+        "url": public_url
+    }

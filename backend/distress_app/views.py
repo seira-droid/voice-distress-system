@@ -1,4 +1,6 @@
-from rest_framework import viewsets
+import uuid
+from .services.ai_service import analyze_voice_event
+from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
@@ -32,25 +34,62 @@ def trigger_word(request):
     user_id = "test-user"
 
     if request.method == "GET":
-        result = supabase.table("trigger_word") \
-            .select("*") \
-            .eq("user_id", user_id) \
+        result = (
+            supabase.table("trigger_word")
+            .select("*")
+            .eq("user_id", user_id)
             .execute()
+        )
 
         return Response(result.data, status=200)
 
     if request.method == "PUT":
         word = request.data.get("word")
+        audio_file = request.FILES.get("audio")
 
         if not word:
             return Response({"error": "word is required"}, status=400)
 
-        result = supabase.table("trigger_word") \
-            .upsert({
-                "user_id": user_id,
-                "word": word
-            }) \
+        existing = (
+            supabase.table("trigger_word")
+            .select("*")
+            .eq("user_id", user_id)
             .execute()
+        )
+
+        audio_url = None
+
+        if audio_file:
+            upload_result = upload_file(audio_file)
+            audio_url = upload_result.get("url")
+
+        if existing.data:
+
+            update_data = {
+                "word": word
+            }
+
+            if audio_url:
+                update_data["audio_url"] = audio_url
+
+            result = (
+                supabase.table("trigger_word")
+                .update(update_data)
+                .eq("user_id", user_id)
+                .execute()
+            )
+
+        else:
+
+            result = (
+                supabase.table("trigger_word")
+                .insert({
+                    "user_id": user_id,
+                    "word": word,
+                    "audio_url": audio_url
+                })
+                .execute()
+            )
 
         return Response(result.data, status=200)
 
@@ -103,4 +142,39 @@ def get_file_url(request):
             "url": url
         },
         status=200
+    )
+
+
+# -----------------------------
+# VOICE ANALYSIS API (Mock)
+# -----------------------------
+@api_view(["POST"])
+def analyze_voice(request):
+
+    trigger_phrase_detected = request.data.get(
+        "trigger_phrase_detected"
+    )
+
+    transcript = request.data.get(
+        "transcript"
+    )
+
+    intensity_score = request.data.get(
+        "intensity_score"
+    )
+
+    base_risk_score = request.data.get(
+        "base_risk_score"
+    )
+
+    result = analyze_voice_event(
+        trigger_phrase_detected=trigger_phrase_detected,
+        transcript=transcript,
+        intensity_score=intensity_score,
+        base_risk_score=base_risk_score
+    )
+
+    return Response(
+        result,
+        status=status.HTTP_200_OK
     )

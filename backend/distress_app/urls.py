@@ -6,6 +6,7 @@ from .views import (
     trigger_word,
     upload_file_view,
     get_file_url,
+    analyze_voice,
 )
 
 router = DefaultRouter()
@@ -21,4 +22,10 @@ urlpatterns = [
     path("v1/trigger-word/", trigger_word),
     path("v1/upload-file/", upload_file_view),
     path("v1/file-url/", get_file_url),
+
+    path(
+        "v1/voice/analyze/",
+        analyze_voice,
+        name="voice-analyze"
+    ),
 ]

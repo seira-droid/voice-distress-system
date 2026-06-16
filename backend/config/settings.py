@@ -6,12 +6,16 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Initialize environment reader
 env = environ.Env()
-environ.Env.read_env(BASE_DIR / ".env")
+
+# Load .env from project root:
+# voice-distress-system/.env
+environ.Env.read_env(BASE_DIR.parent / ".env")
 
 # SECURITY
 SECRET_KEY = env("SECRET_KEY")
 DEBUG = env.bool("DEBUG", default=True)
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[])
+
 # APPLICATIONS
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -27,7 +31,6 @@ INSTALLED_APPS = [
     'distress_app',
 ]
 
-
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -37,7 +40,6 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
-
 
 ROOT_URLCONF = 'config.urls'
 
@@ -58,8 +60,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
-
-# DATABASE
 DATABASES = {
     "default": dj_database_url.parse(
         env(
@@ -69,7 +69,6 @@ DATABASES = {
     )
 }
 
-# PASSWORD VALIDATION
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
@@ -77,19 +76,13 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
-
-# INTERNATIONALIZATION
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-
-# STATIC FILES
 STATIC_URL = 'static/'
 
-
-# REST FRAMEWORK
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
@@ -100,7 +93,6 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 5,
 }
-
 
 SUPABASE_URL = env("SUPABASE_URL", default="")
 SUPABASE_SERVICE_ROLE_KEY = env("SUPABASE_SERVICE_ROLE_KEY", default="")
