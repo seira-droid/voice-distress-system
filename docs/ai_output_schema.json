@@ -1,0 +1,12 @@
+{
+  "classification": "Emergency",
+  "confidence_score": 95,
+  "risk_score": 92,
+  "category": "Personal Safety",
+  "summary": "Possible immediate danger detected.",
+  "recommendations": [
+    "Move to a safe location",
+    "Contact emergency services"
+  ],
+  "send_alert": true
+}
