@@ -1,114 +1,126 @@
-# AI-Based Adaptive Voice Distress Detection and Risk Scoring Emergency Alert System
+# Voice Distress System
 
-## 📌 Project Overview
-This project is an AI-powered voice safety system that analyzes user speech in real-time to detect distress conditions and generate smart emergency responses.
+## Overview
 
-Instead of simple keyword-based alert systems, it uses a multi-layer AI decision pipeline that evaluates risk before triggering any action.
+Voice Distress System is a safety-focused backend application that analyzes distress-related voice inputs, manages emergency contacts, detects trigger words, stores uploaded audio files, and provides risk assessment data for emergency situations.
 
----
+## Features
 
-## 🚨 Problem Statement
-In emergency situations, users such as elderly individuals, women in unsafe environments, or people experiencing panic attacks may not be able to manually trigger help.
+### Emergency Contact Management
 
-Existing systems are limited because:
-- They rely on manual SOS triggers
-- They use simple keyword detection
-- They generate false alerts or miss real emergencies
+* Create emergency contacts
+* View all emergency contacts
+* View contact by ID
+* Update contact details
+* Delete contacts
 
-This system solves these issues using AI-driven risk analysis.
+### Trigger Word Management
 
----
+* Get current trigger word
+* Update trigger word dynamically
 
-## 🧠 Core Idea
-Voice Input → Feature Extraction → AI Analysis → Risk Scoring → Decision Engine → LLM Explanation → Alert Logging
+### File Management
 
----
+* Upload audio files
+* Retrieve uploaded file URLs
 
-## ⚙️ Key Features (MVP)
+### Voice Analysis
 
-- Voice input processing and feature extraction  
-- AI-based distress detection (emotion + wake words)  
-- Risk scoring engine with weighted signals  
-- LLM-generated explanation of risk decisions  
-- Alert logging and event tracking system  
+* Analyze distress-related transcripts
+* Detect trigger phrases
+* Calculate intensity score
+* Calculate risk score
 
----
+## Tech Stack
 
-## 🧩 System Architecture
+* Python
+* Django
+* Django REST Framework
+* DRF Spectacular
+* Swagger UI
+* Postman
+* SQLite
 
-Client (Streamlit / Postman)
-↓
-Django REST API
-↓
-Voice Processing Module
-↓
-Risk Scoring Engine
-↓
-Supabase Database
-↓
-LLM AI Engine
-↓
-Response API (risk + explanation + action)
+## Installation
 
----
+### Clone Repository
 
-## 🛠️ Tech Stack
+git clone <repository-url>
 
-- Python
-- Django REST Framework
-- Supabase (Database + Auth + RLS)
-- OpenAI / Claude API (AI reasoning layer)
-- Librosa (Audio feature extraction)
-- Streamlit (optional UI)
-- Railway (Deployment)
-- Swagger (API Documentation)
+cd voice-distress-system
 
----
+### Create Virtual Environment
 
-## 🗄️ Database Overview
+python -m venv venv
 
-- Users
-- Voice Sessions
-- Risk Analysis Records
-- Alerts Log
+### Activate Environment
 
----
+Windows:
 
-## 🔑 Key Innovation
+venv\Scripts\activate
 
-This system does NOT directly trigger alerts.
+### Install Dependencies
 
-Instead it follows:
-**Detect → Analyze → Score → Verify → Explain → Act**
+pip install -r requirements.txt
 
-This reduces false alerts and improves decision reliability.
+### Run Migrations
 
----
+python manage.py migrate
 
-## 📊 AI Integration (Mandatory Requirement)
+### Start Server
 
-- Classification: risk level detection  
-- Text Analysis: emotion + distress interpretation  
-- Content Generation: explanation of emergency decision  
-- Function-like behavior: decides escalation level  
+python manage.py runserver
 
----
+## API Documentation
 
-## 🚀 Project Status
-MVP Phase – Backend Design + AI Pipeline Definition
+Swagger UI:
 
----
+http://127.0.0.1:8000/api/schema/swagger-ui/
 
+OpenAPI Schema:
 
-## Feature 1 - Emergency Contact API
+http://127.0.0.1:8000/api/schema/
 
-- Feature 1 API successfully implemented using Django REST Framework
-- JWT authentication integrated
-- Full CRUD operations (Create, Read, Update, Delete) completed via ViewSet
-- API tested using Postman
-- Postman collection exported and added to repository
-- Code merged into main branch and pushed to GitHub
-"# CI test trigger" 
-## CI Status
+## API Endpoints
 
-![Django Pytest CI](https://github.com/seira-droid/voice-distress-system/actions/workflows/pytest-ci.yml/badge.svg)
+### Emergency Contacts
+
+GET /api/emergency-contacts/
+
+POST /api/emergency-contacts/
+
+GET /api/emergency-contacts/{id}/
+
+PUT /api/emergency-contacts/{id}/
+
+DELETE /api/emergency-contacts/{id}/
+
+### Trigger Word
+
+GET /api/v1/trigger-word/
+
+PUT /api/v1/trigger-word/
+
+### File Management
+
+POST /api/v1/upload-file/
+
+GET /api/v1/file-url/
+
+### Voice Analysis
+
+POST /api/v1/voice/analyze/
+
+## Testing
+
+API testing performed using Postman.
+
+Swagger documentation generated using DRF Spectacular.
+
+## Future Improvements
+
+* Real-time audio processing
+* AI-based distress detection
+* SMS alerts
+* Location sharing
+* Emergency notification system

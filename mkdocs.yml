@@ -1,0 +1,7 @@
+site_name: Voice Distress System Docs
+
+nav:
+  - Home: index.md
+  - Emergency Contacts: emergency_contacts.md
+  - Trigger Words: trigger_words.md
+  - Voice Analysis: voice_analysis.md

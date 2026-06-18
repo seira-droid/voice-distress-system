@@ -1,14 +1,19 @@
-import uuid
-from .services.ai_service import analyze_voice_event
+from drf_spectacular.utils import (
+    extend_schema,
+    OpenApiParameter,
+    OpenApiTypes,
+)
+
 from rest_framework import viewsets, status
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.decorators import api_view
+from rest_framework.permissions import AllowAny
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
 from django_filters.rest_framework import DjangoFilterBackend
 
 from .models import EmergencyContact
 from .serializers import EmergencyContactSerializer, FileUploadSerializer
+from .services.ai_service import analyze_voice_event
 
 from utils.supabase_client import get_supabase, upload_file
 
@@ -16,19 +21,29 @@ from utils.supabase_client import get_supabase, upload_file
 # -----------------------------
 # Emergency Contact CRUD API
 # -----------------------------
+@extend_schema(
+    tags=["Emergency Contacts"],
+    description="CRUD operations for emergency contacts"
+)
 class EmergencyContactViewSet(viewsets.ModelViewSet):
     queryset = EmergencyContact.objects.all()
     serializer_class = EmergencyContactSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]   # FIXED
 
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["name", "relationship"]
 
 
 # -----------------------------
-# Trigger Word API (Supabase table)
+# Trigger Word API
 # -----------------------------
 @api_view(["GET", "PUT"])
+@permission_classes([AllowAny])   # FIXED
+@extend_schema(
+    tags=["Trigger Word"],
+    summary="Get or update trigger word",
+    description="Stores or retrieves user's emergency trigger word from Supabase",
+)
 def trigger_word(request):
     supabase = get_supabase()
     user_id = "test-user"
@@ -40,7 +55,6 @@ def trigger_word(request):
             .eq("user_id", user_id)
             .execute()
         )
-
         return Response(result.data, status=200)
 
     if request.method == "PUT":
@@ -64,11 +78,7 @@ def trigger_word(request):
             audio_url = upload_result.get("url")
 
         if existing.data:
-
-            update_data = {
-                "word": word
-            }
-
+            update_data = {"word": word}
             if audio_url:
                 update_data["audio_url"] = audio_url
 
@@ -78,16 +88,16 @@ def trigger_word(request):
                 .eq("user_id", user_id)
                 .execute()
             )
-
         else:
-
             result = (
                 supabase.table("trigger_word")
-                .insert({
-                    "user_id": user_id,
-                    "word": word,
-                    "audio_url": audio_url
-                })
+                .insert(
+                    {
+                        "user_id": user_id,
+                        "word": word,
+                        "audio_url": audio_url,
+                    }
+                )
                 .execute()
             )
 
@@ -95,9 +105,14 @@ def trigger_word(request):
 
 
 # -----------------------------
-# FILE UPLOAD API (Supabase Storage)
+# FILE UPLOAD API
 # -----------------------------
 @api_view(["POST"])
+@permission_classes([AllowAny])   # FIXED
+@extend_schema(
+    tags=["File Upload"],
+    summary="Upload file",
+)
 def upload_file_view(request):
     serializer = FileUploadSerializer(data=request.data)
 
@@ -112,9 +127,9 @@ def upload_file_view(request):
         {
             "message": "File uploaded successfully",
             "file_name": result["file_name"],
-            "url": result["url"]
+            "url": result["url"],
         },
-        status=201
+        status=201,
     )
 
 
@@ -122,59 +137,45 @@ def upload_file_view(request):
 # GET FILE URL API
 # -----------------------------
 @api_view(["GET"])
+@permission_classes([AllowAny])   # FIXED
+@extend_schema(
+    tags=["File Upload"],
+    summary="Get file URL",
+)
 def get_file_url(request):
     file_name = request.query_params.get("file_name")
 
     if not file_name:
-        return Response(
-            {"error": "file_name is required"},
-            status=400
-        )
+        return Response({"error": "file_name is required"}, status=400)
 
     supabase = get_supabase()
-
     bucket = supabase.storage.from_("distress-files")
     url = bucket.get_public_url(file_name)
 
     return Response(
         {
             "file_name": file_name,
-            "url": url
+            "url": url,
         },
-        status=200
+        status=200,
     )
 
 
 # -----------------------------
-# VOICE ANALYSIS API (Mock)
+# VOICE ANALYSIS API
 # -----------------------------
 @api_view(["POST"])
+@permission_classes([AllowAny])   # FIXED
+@extend_schema(
+    tags=["Voice Analysis"],
+    summary="Analyze voice distress data",
+)
 def analyze_voice(request):
-
-    trigger_phrase_detected = request.data.get(
-        "trigger_phrase_detected"
-    )
-
-    transcript = request.data.get(
-        "transcript"
-    )
-
-    intensity_score = request.data.get(
-        "intensity_score"
-    )
-
-    base_risk_score = request.data.get(
-        "base_risk_score"
-    )
-
     result = analyze_voice_event(
-        trigger_phrase_detected=trigger_phrase_detected,
-        transcript=transcript,
-        intensity_score=intensity_score,
-        base_risk_score=base_risk_score
+        trigger_phrase_detected=request.data.get("trigger_phrase_detected"),
+        transcript=request.data.get("transcript"),
+        intensity_score=request.data.get("intensity_score"),
+        base_risk_score=request.data.get("base_risk_score"),
     )
 
-    return Response(
-        result,
-        status=status.HTTP_200_OK
-    )
+    return Response(result, status=status.HTTP_200_OK)

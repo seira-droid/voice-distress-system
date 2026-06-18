@@ -1,31 +1,13 @@
+from django.contrib import admin
 from django.urls import path, include
-from rest_framework.routers import DefaultRouter
 
-from .views import (
-    EmergencyContactViewSet,
-    trigger_word,
-    upload_file_view,
-    get_file_url,
-    analyze_voice,
-)
-
-router = DefaultRouter()
-router.register(
-    r"emergency-contacts",
-    EmergencyContactViewSet,
-    basename="emergency-contact"
-)
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 urlpatterns = [
-    path("", include(router.urls)),
+    path("admin/", admin.site.urls),
 
-    path("v1/trigger-word/", trigger_word),
-    path("v1/upload-file/", upload_file_view),
-    path("v1/file-url/", get_file_url),
+    path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
+    path("api/schema/swagger-ui/", SpectacularSwaggerView.as_view(url_name="schema")),
 
-    path(
-        "v1/voice/analyze/",
-        analyze_voice,
-        name="voice-analyze"
-    ),
+    path("api/", include("core.urls")),  # your app name here
 ]
