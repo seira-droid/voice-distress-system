@@ -26,9 +26,11 @@ from utils.supabase_client import get_supabase, upload_file
     description="CRUD operations for emergency contacts"
 )
 class EmergencyContactViewSet(viewsets.ModelViewSet):
+    """Provides CRUD operations for managing emergency contacts."""
+
     queryset = EmergencyContact.objects.all()
     serializer_class = EmergencyContactSerializer
-    permission_classes = [AllowAny]   # FIXED
+    permission_classes = [AllowAny]
 
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["name", "relationship"]
@@ -38,13 +40,15 @@ class EmergencyContactViewSet(viewsets.ModelViewSet):
 # Trigger Word API
 # -----------------------------
 @api_view(["GET", "PUT"])
-@permission_classes([AllowAny])   # FIXED
+@permission_classes([AllowAny])
 @extend_schema(
     tags=["Trigger Word"],
     summary="Get or update trigger word",
     description="Stores or retrieves user's emergency trigger word from Supabase",
 )
 def trigger_word(request):
+    """Retrieves or updates the user's emergency trigger word."""
+
     supabase = get_supabase()
     user_id = "test-user"
 
@@ -79,6 +83,7 @@ def trigger_word(request):
 
         if existing.data:
             update_data = {"word": word}
+
             if audio_url:
                 update_data["audio_url"] = audio_url
 
@@ -108,12 +113,14 @@ def trigger_word(request):
 # FILE UPLOAD API
 # -----------------------------
 @api_view(["POST"])
-@permission_classes([AllowAny])   # FIXED
+@permission_classes([AllowAny])
 @extend_schema(
     tags=["File Upload"],
     summary="Upload file",
 )
 def upload_file_view(request):
+    """Uploads a file to Supabase storage and returns the public URL."""
+
     serializer = FileUploadSerializer(data=request.data)
 
     if not serializer.is_valid():
@@ -137,16 +144,21 @@ def upload_file_view(request):
 # GET FILE URL API
 # -----------------------------
 @api_view(["GET"])
-@permission_classes([AllowAny])   # FIXED
+@permission_classes([AllowAny])
 @extend_schema(
     tags=["File Upload"],
     summary="Get file URL",
 )
 def get_file_url(request):
+    """Returns the public URL of an uploaded file."""
+
     file_name = request.query_params.get("file_name")
 
     if not file_name:
-        return Response({"error": "file_name is required"}, status=400)
+        return Response(
+            {"error": "file_name is required"},
+            status=400,
+        )
 
     supabase = get_supabase()
     bucket = supabase.storage.from_("distress-files")
@@ -165,12 +177,14 @@ def get_file_url(request):
 # VOICE ANALYSIS API
 # -----------------------------
 @api_view(["POST"])
-@permission_classes([AllowAny])   # FIXED
+@permission_classes([AllowAny])
 @extend_schema(
     tags=["Voice Analysis"],
     summary="Analyze voice distress data",
 )
 def analyze_voice(request):
+    """Processes voice distress data and returns a risk assessment result."""
+
     result = analyze_voice_event(
         trigger_phrase_detected=request.data.get("trigger_phrase_detected"),
         transcript=request.data.get("transcript"),
@@ -178,4 +192,7 @@ def analyze_voice(request):
         base_risk_score=request.data.get("base_risk_score"),
     )
 
-    return Response(result, status=status.HTTP_200_OK)
+    return Response(
+        result,
+        status=status.HTTP_200_OK,
+    )
