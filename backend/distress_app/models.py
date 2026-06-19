@@ -2,6 +2,8 @@ from django.db import models
 
 
 class EmergencyContact(models.Model):
+    """Stores emergency contact information used for distress notifications."""
+
     user_id = models.UUIDField(null=True, blank=True, db_index=True)
 
     name = models.CharField(max_length=100)
@@ -13,6 +15,8 @@ class EmergencyContact(models.Model):
 
 
 class VoiceEvent(models.Model):
+    """Stores uploaded voice events and detected distress keywords."""
+
     user_id = models.UUIDField(null=True, blank=True, db_index=True)
 
     audio_file = models.CharField(max_length=255)
@@ -24,6 +28,8 @@ class VoiceEvent(models.Model):
 
 
 class RiskAssessment(models.Model):
+    """Stores AI-generated risk assessment results for a voice event."""
+
     user_id = models.UUIDField(null=True, blank=True, db_index=True)
 
     voice_event = models.ForeignKey(VoiceEvent, on_delete=models.CASCADE)
@@ -36,6 +42,8 @@ class RiskAssessment(models.Model):
 
 
 class AlertLog(models.Model):
+    """Stores records of alerts sent to emergency contacts."""
+
     user_id = models.UUIDField(null=True, blank=True, db_index=True)
 
     voice_event = models.ForeignKey(VoiceEvent, on_delete=models.CASCADE)
