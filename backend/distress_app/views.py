@@ -161,3 +161,51 @@ def analyze_voice(request):
     )
 
     return Response(result, status=status.HTTP_200_OK)
+
+
+# -----------------------------
+# DIAGNOSTICS API
+# -----------------------------
+from django.db import connection
+from django.conf import settings
+import os
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+@extend_schema(
+    tags=["Diagnostics"],
+    summary="Diagnose environment variables and database status",
+)
+def diagnose_status(request):
+    status_info = {}
+    
+    # 1. Check environment variables
+    env_vars = [
+        "DATABASE_URL",
+        "SUPABASE_URL",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "SECRET_KEY",
+        "ANTHROPIC_API_KEY",
+        "GROQ_API_KEY",
+        "GEMINI_API_KEY"
+    ]
+    status_info["environment_variables"] = {
+        var: (var in os.environ and len(os.environ[var]) > 0)
+        for var in env_vars
+    }
+    
+    # 2. Check Database connection
+    try:
+        connection.ensure_connection()
+        status_info["database_connection"] = "connected"
+    except Exception as e:
+        status_info["database_connection"] = f"failed: {str(e)}"
+        
+    # 3. Check Supabase client initialization
+    try:
+        sb = get_supabase()
+        status_info["supabase_initialization"] = "success"
+    except Exception as e:
+        status_info["supabase_initialization"] = f"failed: {str(e)}"
+        
+    return Response(status_info, status=200)

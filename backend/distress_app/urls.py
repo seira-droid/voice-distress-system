@@ -6,6 +6,7 @@ from .views import (
     get_file_url,
     analyze_voice,
     EmergencyContactViewSet,
+    diagnose_status,
 )
 
 router = DefaultRouter()
@@ -17,4 +18,5 @@ urlpatterns = [
     path("upload-file/", upload_file_view, name="upload-file"),
     path("file-url/", get_file_url, name="file-url"),
     path("voice/analyze/", analyze_voice, name="voice-analyze"),
+    path("diagnose/", diagnose_status, name="diagnose-status"),
 ]
