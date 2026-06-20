@@ -8,6 +8,7 @@ class EmergencyContact(models.Model):
     phone_number = models.CharField(max_length=20)
     relationship = models.CharField(max_length=50)
 
+
     def __str__(self):
         return self.name
 
@@ -18,6 +19,7 @@ class VoiceEvent(models.Model):
     audio_file = models.CharField(max_length=255)
     distress_keyword = models.CharField(max_length=100)
     created_at = models.DateTimeField(auto_now_add=True)
+
 
     def __str__(self):
         return self.distress_keyword
@@ -31,6 +33,7 @@ class RiskAssessment(models.Model):
     risk_level = models.CharField(max_length=20)
     ai_explanation = models.TextField()
 
+
     def __str__(self):
         return self.risk_level
 
@@ -42,6 +45,7 @@ class AlertLog(models.Model):
     contact = models.ForeignKey(EmergencyContact, on_delete=models.CASCADE)
     message_sent = models.TextField()
     sent_at = models.DateTimeField(auto_now_add=True)
+
 
     def __str__(self):
         return f"Alert sent to {self.contact.name}"

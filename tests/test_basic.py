@@ -16,7 +16,7 @@ class TestCIPipeline(TestCase):
     def test_installed_apps(self):
         """Verify required apps are installed."""
         from django.conf import settings
-        assert 'distress_app' in settings.INSTALLED_APPS
+        assert 'backend.distress_app' in settings.INSTALLED_APPS
         assert 'rest_framework' in settings.INSTALLED_APPS
 
     def test_database_connection(self):
@@ -30,9 +30,9 @@ class TestCIPipeline(TestCase):
 
 @pytest.mark.django_db
 class TestDistressAppExists:
-    """Verify the distress_app is properly registered."""
+    """Verify the backend.distress_app is properly registered."""
 
     def test_app_config(self):
-        """Verify distress_app is loadable."""
+        """Verify backend.distress_app is loadable."""
         from django.apps import apps
-        assert apps.is_installed('distress_app')
+        assert apps.is_installed('backend.distress_app')

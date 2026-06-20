@@ -53,7 +53,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'django_filters',
 
-    'distress_app',
+    'backend.distress_app',
 ]
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -90,7 +90,7 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 
 DATABASES = {
-    "default": dj_database_url.parse(env("DATABASE_URL"))
+    "default": dj_database_url.parse(env("DATABASE_URL", default="sqlite:///db.sqlite3"))
 }
 
     
