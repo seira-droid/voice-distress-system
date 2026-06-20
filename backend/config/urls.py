@@ -8,11 +8,13 @@ from drf_spectacular.views import (
 urlpatterns = [
     path('admin/', admin.site.urls),
 
-    path('api/v1/', include('your_app.urls')),
+    # ✅ FIXED: replace placeholder app name
+    path('api/v1/', include('distress_app.urls')),
 
-    # ✅ ADD THIS (CRITICAL)
+    # API schema
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
 
+    # Swagger UI
     path(
         'api/schema/swagger-ui/',
         SpectacularSwaggerView.as_view(url_name='schema'),
