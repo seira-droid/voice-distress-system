@@ -1,23 +1,21 @@
 from django.contrib import admin
 from django.urls import path, include
-
 from drf_spectacular.views import (
     SpectacularAPIView,
     SpectacularSwaggerView,
 )
 
 urlpatterns = [
-    path("admin/", admin.site.urls),
+    path('admin/', admin.site.urls),
 
-    path("api/v1/", include("distress_app.urls")),
+    path('api/v1/', include('your_app.urls')),
 
-    # OpenAPI Schema
-    path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
+    # ✅ ADD THIS (CRITICAL)
+    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
 
-    # Swagger UI
     path(
-        "api/schema/swagger-ui/",
-        SpectacularSwaggerView.as_view(url_name="schema"),
-        name="swagger-ui",
+        'api/schema/swagger-ui/',
+        SpectacularSwaggerView.as_view(url_name='schema'),
+        name='swagger-ui'
     ),
 ]

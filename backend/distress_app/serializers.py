@@ -3,11 +3,9 @@ from .models import EmergencyContact, VoiceEvent, AlertLog
 
 
 class EmergencyContactSerializer(serializers.ModelSerializer):
-    """Serializes emergency contact data for API requests and responses."""
-
     class Meta:
         model = EmergencyContact
-        fields = "__all__"
+        fields = ['id', 'name', 'phone_number', 'relationship']
 
 
 class FileUploadSerializer(serializers.Serializer):
