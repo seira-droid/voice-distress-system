@@ -1,8 +1,10 @@
-from groq import Groq
+def get_groq_client():
+    from groq import Groq
+    return Groq()
 from utils.config import GROQ_API_KEY
 import json
 
-client = Groq(api_key=GROQ_API_KEY)
+client = get_groq_client()
 import re
 import json
 

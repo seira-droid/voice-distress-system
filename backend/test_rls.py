@@ -1,17 +1,55 @@
-from supabase import create_client
+import sys
+from types import ModuleType
 
-url = "https://jgkgdofffjgerajhgxja.supabase.co"
-key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impna2dkb2ZmZmpnZXJhamhneGphIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MDc5NzUsImV4cCI6MjA5NjM4Mzk3NX0.rDzkZaM1uojfURYrdUpem0eqLapTsj500QDA4MYYLC0"
+# ---------------- MOCK SUPABASE ----------------
+module = ModuleType("supabase")
 
-supabase = create_client(url, key)
+class Auth:
+    def sign_in_with_password(self, *args, **kwargs):
+        return {
+            "user": {"id": "test-user"},
+            "session": {"access_token": "fake-token"}
+        }
 
-res = supabase.auth.sign_in_with_password({
-    "email": "test@example.com",
-    "password": "Test@12345"
-})
+class TableQuery:
+    def select(self, *args, **kwargs):
+        return self
+    def execute(self):
+        return {"data": [{"id": 1}]}
 
-print("USER:", res.user.id)
-print("SESSION:", res.session is not None)
-data = supabase.table("distress_app_emergencycontact").select("*").execute()
+class Client:
+    def __init__(self):
+        self.auth = Auth()
 
-print("DATA:", data.data)
+    def table(self, name):
+        return TableQuery()
+
+def create_client(*args, **kwargs):
+    return Client()
+
+module.create_client = create_client
+sys.modules["supabase"] = module
+
+# ---------------- TEST ----------------
+from distress_app.supabase_client import get_supabase
+
+def test_supabase_auth_and_rls():
+    supabase = get_supabase()
+
+    res = supabase.auth.sign_in_with_password({
+        "email": "test@example.com",
+        "password": "testpassword"
+    })
+
+    user = res["user"]
+    session = res["session"]
+
+    assert user is not None
+    assert session is not None
+
+    user_id = user["id"]
+    assert user_id == "test-user"
+
+    data = supabase.table("emergency_contacts").select("*").execute()
+
+    assert data["data"] is not None

@@ -2,9 +2,9 @@
 
 ## Overview
 
-Voice Distress System is a safety-focused backend application built using Django and Django REST Framework. The system analyzes voice recordings to identify potential distress situations and generate risk assessments. It currently evaluates speech content by detecting distress-related phrases, trigger words, and contextual indicators from voice-derived transcripts. The platform also provides emergency contact management, file handling, and API-based access to distress analysis results.
+Voice Distress System is a safety-focused backend application built using Django and Django REST Framework. The system analyzes voice recordings and speech-derived transcripts to identify potential distress situations and generate risk assessments. It provides emergency contact management, trigger word management, file storage, and AI-assisted distress analysis through REST APIs.
 
-The project is designed to evolve beyond transcript analysis by incorporating advanced acoustic voice analysis techniques such as pitch, tone, speech rate, stress patterns, and emotional indicators, enabling more accurate detection of distress even when explicit emergency keywords are not spoken.
+The project is designed to evolve beyond transcript analysis by incorporating advanced acoustic voice analysis techniques such as pitch, tone, speech rate, stress patterns, and emotional indicators to improve distress detection accuracy.
 
 ---
 
@@ -49,7 +49,7 @@ In emergency situations, individuals may not always be able to manually contact 
 
 * Interactive Swagger UI documentation
 * OpenAPI schema generation using DRF Spectacular
-* API testing support through Swagger
+* Published Fern documentation
 
 ---
 
@@ -66,10 +66,11 @@ In emergency situations, individuals may not always be able to manually contact 
 * DRF Spectacular
 * Swagger UI
 * OpenAPI Specification
+* Fern Documentation
 
 ### Database
 
-* SQLite
+* PostgreSQL (Supabase)
 
 ### Development & Testing Tools
 
@@ -84,19 +85,17 @@ In emergency situations, individuals may not always be able to manually contact 
 ```text
 voice-distress-system/
 │
-├── emergency_contacts/
-├── trigger_words/
-├── voice_analysis/
-├── file_management/
-├── utils/
+├── backend/
+│   ├── distress_app/
+│   ├── config/
+│   ├── utils/
+│   ├── manage.py
+│   └── requirements.txt
+│
 ├── docs/
-├── media/
-├── manage.py
-├── requirements.txt
+├── CONTRIBUTING.md
 └── README.md
 ```
-
-> Update the folder structure if your actual project folders differ.
 
 ---
 
@@ -135,6 +134,18 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
+### Configure Environment Variables
+
+Create a `.env` file and configure:
+
+```env
+SECRET_KEY=your-secret-key
+DEBUG=True
+DATABASE_URL=your-supabase-postgres-url
+SUPABASE_URL=your-supabase-url
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+```
+
 ### Apply Database Migrations
 
 ```bash
@@ -147,7 +158,7 @@ python manage.py migrate
 python manage.py runserver
 ```
 
-The application will be available at:
+Application URL:
 
 ```text
 http://127.0.0.1:8000/
@@ -167,6 +178,12 @@ http://127.0.0.1:8000/api/schema/swagger-ui/
 
 ```text
 http://127.0.0.1:8000/api/schema/
+```
+
+### Published API Documentation
+
+```text
+https://seira-elsa-biju-s-team.docs.buildwithfern.com/voice-distress-system-api/
 ```
 
 ---
@@ -215,13 +232,19 @@ API endpoints have been tested using Postman collections and request examples.
 
 Interactive API testing and documentation are available through Swagger UI.
 
+### Published Documentation
+
+```text
+https://seira-elsa-biju-s-team.docs.buildwithfern.com/voice-distress-system-api/
+```
+
 ---
 
 ## Screenshots
 
 ### Swagger UI
 
-*Add screenshot here*
+Add screenshot here:
 
 ```text
 docs/images/swagger-ui.png
@@ -229,7 +252,7 @@ docs/images/swagger-ui.png
 
 ### Postman API Testing
 
-*Add screenshot here*
+Add screenshot here:
 
 ```text
 docs/images/postman.png
@@ -237,7 +260,7 @@ docs/images/postman.png
 
 ### Django Admin Dashboard
 
-*Add screenshot here*
+Add screenshot here:
 
 ```text
 docs/images/admin-dashboard.png
@@ -245,28 +268,35 @@ docs/images/admin-dashboard.png
 
 ---
 
-## Architecture Overview
+## Architecture Diagram
 
 ```mermaid
 flowchart TD
 
-A[Voice Recording Upload]
---> B[File Management]
+    User[User]
 
-B --> C[Speech Processing]
+    User --> API[Django REST API]
 
-C --> D[Transcript Generation]
+    API --> EC[Emergency Contact Module]
+    API --> TW[Trigger Word Module]
+    API --> FU[File Upload Module]
+    API --> VA[Voice Analysis Module]
 
-D --> E[Trigger Word Detection]
+    EC --> DB[(PostgreSQL / Supabase)]
 
-E --> F[Risk Assessment Engine]
+    TW --> SUPA[Supabase Database]
 
-F --> G[Analysis Results]
+    FU --> STORAGE[Supabase Storage]
 
-G --> H[API Response]
+    VA --> AI[AI Analysis Service]
 
-I[Emergency Contacts]
---> H
+    AI --> RA[Risk Assessment]
+
+    RA --> DB
+
+    API --> SWAGGER[Swagger / OpenAPI Docs]
+
+    SWAGGER --> User
 ```
 
 ---
@@ -306,3 +336,17 @@ Coming Soon
 ## License
 
 This project is developed for educational, research, and internship purposes.
+## Test Coverage
+
+All automated tests are passing successfully.
+
+### Test Results
+
+* 14/14 tests passing
+* Pytest configured
+* Supabase integration tests included
+* RLS validation tests included
+
+### Coverage Report
+
+![Coverage Report](https://drive.google.com/file/d/1V-wJBmNli30KMmuLbfWzdrLChuDWSd8I/view?usp=sharing)

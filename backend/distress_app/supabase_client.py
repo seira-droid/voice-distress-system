@@ -1,5 +1,8 @@
 import environ
-from supabase import create_client
+try:
+    from supabase import create_client
+except ImportError:
+    create_client = None
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
