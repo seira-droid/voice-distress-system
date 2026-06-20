@@ -115,12 +115,16 @@ def trigger_word(request):
     return Response(getattr(result, "data", []), status=200)
 
 
-# -----------------------------
+# # -----------------------------
 # FILE UPLOAD API
 # -----------------------------
 @api_view(["POST"])
 @permission_classes([AllowAny])
-@extend_schema(tags=["File Upload"], summary="Upload file")
+@extend_schema(
+    tags=["File Upload"],
+    summary="Upload file",
+    request=FileUploadSerializer,
+)
 def upload_file_view(request):
     serializer = FileUploadSerializer(data=request.data)
 
@@ -139,7 +143,6 @@ def upload_file_view(request):
         },
         status=201,
     )
-
 
 # -----------------------------
 # GET FILE URL API
