@@ -1,0 +1,356 @@
+openapi: 3.0.3
+info:
+  title: Voice Distress System API
+  version: 1.0.0
+  description: API documentation for backend services
+paths:
+  /api/v1/diagnose/:
+    get:
+      operationId: v1_diagnose_retrieve
+      summary: Diagnose environment variables and database status
+      tags:
+      - Diagnostics
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/v1/emergency-contacts/:
+    get:
+      operationId: v1_emergency_contacts_list
+      description: CRUD operations for emergency contacts
+      parameters:
+      - in: query
+        name: name
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - in: query
+        name: relationship
+        schema:
+          type: string
+      tags:
+      - Emergency Contacts
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedEmergencyContactList'
+          description: ''
+    post:
+      operationId: v1_emergency_contacts_create
+      description: CRUD operations for emergency contacts
+      tags:
+      - Emergency Contacts
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmergencyContact'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/EmergencyContact'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/EmergencyContact'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmergencyContact'
+          description: ''
+  /api/v1/emergency-contacts/{id}/:
+    get:
+      operationId: v1_emergency_contacts_retrieve
+      description: CRUD operations for emergency contacts
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this emergency contact.
+        required: true
+      tags:
+      - Emergency Contacts
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmergencyContact'
+          description: ''
+    put:
+      operationId: v1_emergency_contacts_update
+      description: CRUD operations for emergency contacts
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this emergency contact.
+        required: true
+      tags:
+      - Emergency Contacts
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmergencyContact'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/EmergencyContact'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/EmergencyContact'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmergencyContact'
+          description: ''
+    patch:
+      operationId: v1_emergency_contacts_partial_update
+      description: CRUD operations for emergency contacts
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this emergency contact.
+        required: true
+      tags:
+      - Emergency Contacts
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedEmergencyContact'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedEmergencyContact'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedEmergencyContact'
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmergencyContact'
+          description: ''
+    delete:
+      operationId: v1_emergency_contacts_destroy
+      description: CRUD operations for emergency contacts
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this emergency contact.
+        required: true
+      tags:
+      - Emergency Contacts
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '204':
+          description: No response body
+  /api/v1/file-url/:
+    get:
+      operationId: v1_file_url_retrieve
+      summary: Get file URL
+      tags:
+      - File Upload
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/v1/trigger-word/:
+    get:
+      operationId: v1_trigger_word_retrieve
+      summary: Get or update trigger word
+      tags:
+      - Trigger Word
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+    put:
+      operationId: v1_trigger_word_update
+      summary: Get or update trigger word
+      tags:
+      - Trigger Word
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TriggerWord'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TriggerWord'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TriggerWord'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/v1/upload-file/:
+    post:
+      operationId: v1_upload_file_create
+      summary: Upload file
+      tags:
+      - File Upload
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FileUpload'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/FileUpload'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FileUpload'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/voice/analyze/:
+    post:
+      operationId: v1_voice_analyze_create
+      summary: Analyze voice distress data
+      tags:
+      - Voice Analysis
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+components:
+  schemas:
+    EmergencyContact:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+        phone_number:
+          type: string
+          maxLength: 20
+        relationship:
+          type: string
+          maxLength: 50
+      required:
+      - id
+      - name
+      - phone_number
+      - relationship
+    FileUpload:
+      type: object
+      description: Validates uploaded audio files for voice analysis.
+      properties:
+        file:
+          type: string
+          format: uri
+      required:
+      - file
+    PaginatedEmergencyContactList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/EmergencyContact'
+    PatchedEmergencyContact:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+        phone_number:
+          type: string
+          maxLength: 20
+        relationship:
+          type: string
+          maxLength: 50
+    TriggerWord:
+      type: object
+      properties:
+        word:
+          type: string
+        audio:
+          type: string
+          format: uri
+      required:
+      - word
+  securitySchemes:
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

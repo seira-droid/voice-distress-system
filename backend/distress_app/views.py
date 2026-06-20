@@ -9,25 +9,28 @@ from django.db import connection
 import os
 
 from .models import EmergencyContact
-from .serializers import (
-    EmergencyContactSerializer,
-    FileUploadSerializer,
-)
+from .serializers import EmergencyContactSerializer, FileUploadSerializer
 from .services.ai_service import analyze_voice_event
 
 
+# -----------------------------
+# SERIALIZERS
+# -----------------------------
 class TriggerWordSerializer(serializers.Serializer):
     word = serializers.CharField(required=True)
     audio = serializers.FileField(required=False)
 
 
+class UploadResponseSerializer(serializers.Serializer):
+    message = serializers.CharField()
+    file_name = serializers.CharField(allow_null=True)
+    url = serializers.CharField(allow_null=True)
+
+
 # -----------------------------
 # Emergency Contact CRUD API
 # -----------------------------
-@extend_schema(
-    tags=["Emergency Contacts"],
-    description="CRUD operations for emergency contacts",
-)
+@extend_schema(tags=["Emergency Contacts"])
 class EmergencyContactViewSet(viewsets.ModelViewSet):
     queryset = EmergencyContact.objects.all().order_by("id")
     serializer_class = EmergencyContactSerializer
@@ -50,10 +53,8 @@ class EmergencyContactViewSet(viewsets.ModelViewSet):
 def trigger_word(request):
     supabase = get_supabase()
     user_id = "test-user"
-
     table = supabase.table("trigger_word")
 
-    # GET
     if request.method == "GET":
         try:
             result = table.select("*").execute()
@@ -64,67 +65,54 @@ def trigger_word(request):
         filtered = [r for r in data if r.get("user_id") == user_id]
         return Response(filtered, status=200)
 
-    # PUT
     serializer = TriggerWordSerializer(data=request.data)
-
     if not serializer.is_valid():
         return Response(serializer.errors, status=400)
 
     word = serializer.validated_data["word"]
     audio_file = request.FILES.get("audio")
 
+    existing = []
     try:
         existing_result = table.select("*").execute()
         existing = getattr(existing_result, "data", []) or []
     except Exception:
-        existing = []
+        pass
 
     existing = [r for r in existing if r.get("user_id") == user_id]
 
     audio_url = None
-
     if audio_file:
         upload_result = upload_file(audio_file)
         audio_url = upload_result.get("url")
 
     if existing:
         update_data = {"word": word}
-
         if audio_url:
             update_data["audio_url"] = audio_url
 
-        result = (
-            table
-            .update(update_data)
-            .eq("user_id", user_id)
-            .execute()
-        )
+        result = table.update(update_data).eq("user_id", user_id).execute()
     else:
-        result = (
-            table
-            .insert(
-                {
-                    "user_id": user_id,
-                    "word": word,
-                    "audio_url": audio_url,
-                }
-            )
-            .execute()
-        )
+        result = table.insert({
+            "user_id": user_id,
+            "word": word,
+            "audio_url": audio_url,
+        }).execute()
 
     return Response(getattr(result, "data", []), status=200)
 
 
-# # -----------------------------
-# FILE UPLOAD API
 # -----------------------------
-@api_view(["POST"])
-@permission_classes([AllowAny])
+# FILE UPLOAD API (FIXED)
+# -----------------------------
 @extend_schema(
     tags=["File Upload"],
     summary="Upload file",
     request=FileUploadSerializer,
+    responses=UploadResponseSerializer,
 )
+@api_view(["POST"])
+@permission_classes([AllowAny])
 def upload_file_view(request):
     serializer = FileUploadSerializer(data=request.data)
 
@@ -144,12 +132,13 @@ def upload_file_view(request):
         status=201,
     )
 
+
 # -----------------------------
 # GET FILE URL API
 # -----------------------------
+@extend_schema(tags=["File Upload"])
 @api_view(["GET"])
 @permission_classes([AllowAny])
-@extend_schema(tags=["File Upload"], summary="Get file URL")
 def get_file_url(request):
     file_name = request.query_params.get("file_name")
 
@@ -162,10 +151,7 @@ def get_file_url(request):
     url = bucket.get_public_url(file_name)
 
     return Response(
-        {
-            "file_name": file_name,
-            "url": url,
-        },
+        {"file_name": file_name, "url": url},
         status=200,
     )
 
@@ -173,12 +159,9 @@ def get_file_url(request):
 # -----------------------------
 # VOICE ANALYSIS API
 # -----------------------------
+@extend_schema(tags=["Voice Analysis"])
 @api_view(["POST"])
 @permission_classes([AllowAny])
-@extend_schema(
-    tags=["Voice Analysis"],
-    summary="Analyze voice distress data",
-)
 def analyze_voice(request):
     result = analyze_voice_event(
         trigger_phrase_detected=request.data.get("trigger_phrase_detected"),
@@ -193,12 +176,9 @@ def analyze_voice(request):
 # -----------------------------
 # DIAGNOSTICS API
 # -----------------------------
+@extend_schema(tags=["Diagnostics"])
 @api_view(["GET"])
 @permission_classes([AllowAny])
-@extend_schema(
-    tags=["Diagnostics"],
-    summary="Diagnose environment variables and database status",
-)
 def diagnose_status(request):
     status_info = {}
 
