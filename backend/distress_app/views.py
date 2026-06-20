@@ -135,25 +135,31 @@ def upload_file_view(request):
 
 # -----------------------------
 # GET FILE URL API
-# -----------------------------
-@extend_schema(tags=["File Upload"])
-@api_view(["GET"])
-@permission_classes([AllowAny])
-def get_file_url(request):
-    file_name = request.query_params.get("file_name")
-
-    if not file_name:
-        return Response({"error": "file_name is required"}, status=400)
-
-    supabase = get_supabase()
-    bucket = supabase.storage.from_("distress-files")
-
-    url = bucket.get_public_url(file_name)
-
-    return Response(
-        {"file_name": file_name, "url": url},
-        status=200,
-    )
+@extend_schema(
+    tags=["File Upload"],
+    summary="Upload file",
+    request={
+        "multipart/form-data": {
+            "type": "object",
+            "properties": {
+                "file": {
+                    "type": "string",
+                    "format": "binary"
+                }
+            },
+            "required": ["file"]
+        }
+    },
+    responses={
+        201: {
+            "type": "object",
+            "properties": {
+                "message": {"type": "string"},
+                "file_name": {"type": "string"},
+                "url": {"type": "string"}
+            }
+        }
+    }
 
 
 # -----------------------------
