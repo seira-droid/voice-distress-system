@@ -102,7 +102,9 @@ def trigger_word(request):
 # -----------------------------
 @extend_schema(
     tags=["File Upload"],
-    request=FileUploadSerializer,
+    request={
+        "multipart/form-data": FileUploadSerializer
+    },
     responses=dict,
 )
 @api_view(["POST"])
