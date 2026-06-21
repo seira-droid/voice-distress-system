@@ -100,13 +100,19 @@ def trigger_word(request):
 # -----------------------------
 # FILE UPLOAD API
 # -----------------------------
+from drf_spectacular.utils import OpenApiTypes, inline_serializer
 @extend_schema(
     tags=["File Upload"],
-    request={
-        "multipart/form-data": FileUploadSerializer
-    },
+    request=inline_serializer(
+        name="FileUploadRequest",
+        fields={
+            "file": serializers.FileField(),
+        },
+    ),
     responses=dict,
 )
+
+
 @api_view(["POST"])
 @permission_classes([AllowAny])
 @parser_classes([MultiPartParser, FormParser])
