@@ -7,10 +7,11 @@ from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db import connection
 import os
-
+from rest_framework.parsers import MultiPartParser, FormParser
 from .models import EmergencyContact
 from .serializers import EmergencyContactSerializer, FileUploadSerializer
 from .services.ai_service import analyze_voice_event
+from rest_framework.decorators import parser_classes
 
 
 # -----------------------------
@@ -96,7 +97,6 @@ def trigger_word(request):
 
     return Response({"message": "updated"}, status=200)
 
-
 # -----------------------------
 # FILE UPLOAD API
 # -----------------------------
@@ -107,6 +107,7 @@ def trigger_word(request):
 )
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@parser_classes([MultiPartParser, FormParser])
 def upload_file_view(request):
     serializer = FileUploadSerializer(data=request.data)
 
