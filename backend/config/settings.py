@@ -13,7 +13,7 @@ environ.Env.read_env(BASE_DIR.parent / ".env")
 
 # SECURITY
 SECRET_KEY = env("SECRET_KEY")
-DEBUG = env.bool("DEBUG", default=True)
+DEBUG = env.bool("DEBUG", default=False)
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[])
 
 railway_domain = env("RAILWAY_PUBLIC_DOMAIN", default="")
