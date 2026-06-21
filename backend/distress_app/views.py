@@ -21,10 +21,27 @@ class TriggerWordSerializer(serializers.Serializer):
     audio = serializers.FileField(required=False)
 
 
-class UploadResponseSerializer(serializers.Serializer):
-    message = serializers.CharField()
-    file_name = serializers.CharField(allow_null=True)
-    url = serializers.CharField(allow_null=True)
+class AnalyzeVoiceRequestSerializer(serializers.Serializer):
+    trigger_phrase_detected = serializers.BooleanField(required=False)
+    transcript = serializers.CharField(required=False)
+    intensity_score = serializers.IntegerField(required=False)
+    base_risk_score = serializers.IntegerField(required=False)
+
+
+class AnalyzeVoiceResponseSerializer(serializers.Serializer):
+    risk_level = serializers.CharField(required=False)
+    score = serializers.IntegerField(required=False)
+
+
+class DiagnoseResponseSerializer(serializers.Serializer):
+    environment_variables = serializers.DictField()
+    database_connection = serializers.CharField()
+    supabase_initialization = serializers.CharField()
+
+
+class FileURLSerializer(serializers.Serializer):
+    file_name = serializers.CharField()
+    url = serializers.CharField()
 
 
 # -----------------------------
@@ -45,8 +62,8 @@ class EmergencyContactViewSet(viewsets.ModelViewSet):
 # -----------------------------
 @extend_schema(
     tags=["Trigger Word"],
-    summary="Get or update trigger word",
     request=TriggerWordSerializer,
+    responses=dict,
 )
 @api_view(["GET", "PUT"])
 @permission_classes([AllowAny])
@@ -56,14 +73,9 @@ def trigger_word(request):
     table = supabase.table("trigger_word")
 
     if request.method == "GET":
-        try:
-            result = table.select("*").execute()
-            data = getattr(result, "data", []) or []
-        except Exception:
-            return Response([], status=200)
-
-        filtered = [r for r in data if r.get("user_id") == user_id]
-        return Response(filtered, status=200)
+        result = table.select("*").execute()
+        data = getattr(result, "data", []) or []
+        return Response([r for r in data if r.get("user_id") == user_id])
 
     serializer = TriggerWordSerializer(data=request.data)
     if not serializer.is_valid():
@@ -72,44 +84,26 @@ def trigger_word(request):
     word = serializer.validated_data["word"]
     audio_file = request.FILES.get("audio")
 
-    existing = []
-    try:
-        existing_result = table.select("*").execute()
-        existing = getattr(existing_result, "data", []) or []
-    except Exception:
-        pass
-
-    existing = [r for r in existing if r.get("user_id") == user_id]
-
     audio_url = None
     if audio_file:
-        upload_result = upload_file(audio_file)
-        audio_url = upload_result.get("url")
+        audio_url = (upload_file(audio_file) or {}).get("url")
 
-    if existing:
-        update_data = {"word": word}
-        if audio_url:
-            update_data["audio_url"] = audio_url
+    table.insert({
+        "user_id": user_id,
+        "word": word,
+        "audio_url": audio_url,
+    }).execute()
 
-        result = table.update(update_data).eq("user_id", user_id).execute()
-    else:
-        result = table.insert({
-            "user_id": user_id,
-            "word": word,
-            "audio_url": audio_url,
-        }).execute()
-
-    return Response(getattr(result, "data", []), status=200)
+    return Response({"message": "updated"}, status=200)
 
 
 # -----------------------------
-# FILE UPLOAD API (FIXED)
+# FILE UPLOAD API
 # -----------------------------
 @extend_schema(
     tags=["File Upload"],
-    summary="Upload file",
     request=FileUploadSerializer,
-    responses=UploadResponseSerializer,
+    responses=dict,
 )
 @api_view(["POST"])
 @permission_classes([AllowAny])
@@ -120,7 +114,6 @@ def upload_file_view(request):
         return Response(serializer.errors, status=400)
 
     file = serializer.validated_data["file"]
-
     result = upload_file(file) or {}
 
     return Response(
@@ -135,37 +128,41 @@ def upload_file_view(request):
 
 # -----------------------------
 # GET FILE URL API
+# -----------------------------
 @extend_schema(
     tags=["File Upload"],
-    summary="Upload file",
-    request={
-        "multipart/form-data": {
-            "type": "object",
-            "properties": {
-                "file": {
-                    "type": "string",
-                    "format": "binary"
-                }
-            },
-            "required": ["file"]
-        }
-    },
-    responses={
-        201: {
-            "type": "object",
-            "properties": {
-                "message": {"type": "string"},
-                "file_name": {"type": "string"},
-                "url": {"type": "string"}
-            }
-        }
-    }
+    responses=FileURLSerializer,
+)
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def get_file_url(request):
+    file_name = request.query_params.get("file_name")
+
+    if not file_name:
+        return Response({"error": "file_name is required"}, status=400)
+
+    supabase = get_supabase()
+    bucket = supabase.storage.from_("distress-files")
+
+    url = bucket.get_public_url(file_name)
+
+    return Response(
+        {
+            "file_name": file_name,
+            "url": url,
+        },
+        status=200,
+    )
 
 
 # -----------------------------
 # VOICE ANALYSIS API
 # -----------------------------
-@extend_schema(tags=["Voice Analysis"])
+@extend_schema(
+    tags=["Voice Analysis"],
+    request=AnalyzeVoiceRequestSerializer,
+    responses=AnalyzeVoiceResponseSerializer,
+)
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def analyze_voice(request):
@@ -176,13 +173,16 @@ def analyze_voice(request):
         base_risk_score=request.data.get("base_risk_score"),
     )
 
-    return Response(result, status=status.HTTP_200_OK)
+    return Response(result, status=200)
 
 
 # -----------------------------
 # DIAGNOSTICS API
 # -----------------------------
-@extend_schema(tags=["Diagnostics"])
+@extend_schema(
+    tags=["Diagnostics"],
+    responses=DiagnoseResponseSerializer,
+)
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def diagnose_status(request):

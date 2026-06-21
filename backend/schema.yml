@@ -7,7 +7,6 @@ paths:
   /api/v1/diagnose/:
     get:
       operationId: v1_diagnose_retrieve
-      summary: Diagnose environment variables and database status
       tags:
       - Diagnostics
       security:
@@ -15,11 +14,14 @@ paths:
       - {}
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiagnoseResponse'
+          description: ''
   /api/v1/emergency-contacts/:
     get:
       operationId: v1_emergency_contacts_list
-      description: CRUD operations for emergency contacts
       parameters:
       - in: query
         name: name
@@ -49,7 +51,6 @@ paths:
           description: ''
     post:
       operationId: v1_emergency_contacts_create
-      description: CRUD operations for emergency contacts
       tags:
       - Emergency Contacts
       requestBody:
@@ -77,7 +78,6 @@ paths:
   /api/v1/emergency-contacts/{id}/:
     get:
       operationId: v1_emergency_contacts_retrieve
-      description: CRUD operations for emergency contacts
       parameters:
       - in: path
         name: id
@@ -99,7 +99,6 @@ paths:
           description: ''
     put:
       operationId: v1_emergency_contacts_update
-      description: CRUD operations for emergency contacts
       parameters:
       - in: path
         name: id
@@ -133,7 +132,6 @@ paths:
           description: ''
     patch:
       operationId: v1_emergency_contacts_partial_update
-      description: CRUD operations for emergency contacts
       parameters:
       - in: path
         name: id
@@ -166,7 +164,6 @@ paths:
           description: ''
     delete:
       operationId: v1_emergency_contacts_destroy
-      description: CRUD operations for emergency contacts
       parameters:
       - in: path
         name: id
@@ -185,7 +182,6 @@ paths:
   /api/v1/file-url/:
     get:
       operationId: v1_file_url_retrieve
-      summary: Get file URL
       tags:
       - File Upload
       security:
@@ -193,11 +189,14 @@ paths:
       - {}
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileURL'
+          description: ''
   /api/v1/trigger-word/:
     get:
       operationId: v1_trigger_word_retrieve
-      summary: Get or update trigger word
       tags:
       - Trigger Word
       security:
@@ -205,10 +204,14 @@ paths:
       - {}
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
     put:
       operationId: v1_trigger_word_update
-      summary: Get or update trigger word
       tags:
       - Trigger Word
       requestBody:
@@ -228,11 +231,15 @@ paths:
       - {}
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/upload-file/:
     post:
       operationId: v1_upload_file_create
-      summary: Upload file
       tags:
       - File Upload
       requestBody:
@@ -251,7 +258,7 @@ paths:
       - jwtAuth: []
       - {}
       responses:
-        '201':
+        '200':
           content:
             application/json:
               schema:
@@ -261,17 +268,63 @@ paths:
   /api/v1/voice/analyze/:
     post:
       operationId: v1_voice_analyze_create
-      summary: Analyze voice distress data
       tags:
       - Voice Analysis
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalyzeVoiceRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AnalyzeVoiceRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AnalyzeVoiceRequest'
       security:
       - jwtAuth: []
       - {}
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyzeVoiceResponse'
+          description: ''
 components:
   schemas:
+    AnalyzeVoiceRequest:
+      type: object
+      properties:
+        trigger_phrase_detected:
+          type: boolean
+        transcript:
+          type: string
+        intensity_score:
+          type: integer
+        base_risk_score:
+          type: integer
+    AnalyzeVoiceResponse:
+      type: object
+      properties:
+        risk_level:
+          type: string
+        score:
+          type: integer
+    DiagnoseResponse:
+      type: object
+      properties:
+        environment_variables:
+          type: object
+          additionalProperties: {}
+        database_connection:
+          type: string
+        supabase_initialization:
+          type: string
+      required:
+      - database_connection
+      - environment_variables
+      - supabase_initialization
     EmergencyContact:
       type: object
       properties:
@@ -292,6 +345,16 @@ components:
       - name
       - phone_number
       - relationship
+    FileURL:
+      type: object
+      properties:
+        file_name:
+          type: string
+        url:
+          type: string
+      required:
+      - file_name
+      - url
     FileUpload:
       type: object
       description: Validates uploaded audio files for voice analysis.
