@@ -12,6 +12,10 @@ import os
 from .models import EmergencyContact
 from .serializers import EmergencyContactSerializer, FileUploadSerializer
 from .services.ai_service import analyze_voice_event
+from rest_framework.throttling import AnonRateThrottle
+
+class BurstThrottle(AnonRateThrottle):
+    rate = '10/min'
 
 
 # -----------------------------
@@ -192,6 +196,13 @@ def get_file_url(request):
 @permission_classes([AllowAny])
 def analyze_voice(request):
 
+    throttle = BurstThrottle()
+    if not throttle.allow_request(request, None):
+        return Response(
+            {"detail": "Rate limit exceeded"},
+            status=429
+        )
+
     serializer = AnalyzeVoiceRequestSerializer(data=request.data)
 
     if not serializer.is_valid():
@@ -207,8 +218,6 @@ def analyze_voice(request):
     )
 
     return Response(result, status=200)
-
-
 # -----------------------------
 # DIAGNOSTICS API
 # -----------------------------
