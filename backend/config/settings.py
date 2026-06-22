@@ -4,16 +4,13 @@ import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Initialize environment reader
 env = environ.Env()
 
-# Load .env from project root:
-# voice-distress-system/.env
 environ.Env.read_env(BASE_DIR.parent / ".env")
 
-# SECURITY
 SECRET_KEY = env("SECRET_KEY")
 DEBUG = env.bool("DEBUG", default=False)
+
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[])
 
 railway_domain = env("RAILWAY_PUBLIC_DOMAIN", default="")
@@ -24,7 +21,6 @@ CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
 if railway_domain:
     CSRF_TRUSTED_ORIGINS.append(f"https://{railway_domain}")
 
-# APPLICATIONS
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -41,11 +37,11 @@ INSTALLED_APPS = [
     'drf_spectacular',
 ]
 
-
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
+
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -75,10 +71,7 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 DATABASES = {
     "default": dj_database_url.parse(
-        env(
-            "DATABASE_URL",
-            default="sqlite:///db.sqlite3"
-        )
+        env("DATABASE_URL", default="sqlite:///db.sqlite3")
     )
 }
 
@@ -108,7 +101,9 @@ STORAGES = {
 
 CORS_ALLOW_ALL_ORIGINS = True
 
-# REST FRAMEWORK CONFIGURATION
+# -----------------------------
+# DRF CONFIGURATION
+# -----------------------------
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
@@ -118,9 +113,9 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 5,
-
-    # Swagger / OpenAPI schema generator
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+
+    # ✅ THROTTLING (RATE LIMIT FIX)
     'DEFAULT_THROTTLE_CLASSES': [
         'rest_framework.throttling.AnonRateThrottle',
     ],
@@ -129,8 +124,18 @@ REST_FRAMEWORK = {
     }
 }
 
+# -----------------------------
+# 🔥 CRITICAL FIX: CACHE (THIS WAS MISSING)
+# -----------------------------
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache"
+    }
+}
 
-# DRF SPECTACULAR (Swagger / OpenAPI settings)
+# -----------------------------
+# DRF SPECTACULAR
+# -----------------------------
 SPECTACULAR_SETTINGS = {
     "TITLE": "Voice Distress System API",
     "DESCRIPTION": "API documentation for backend services",
@@ -140,6 +145,7 @@ SPECTACULAR_SETTINGS = {
 
 SUPABASE_URL = env("SUPABASE_URL", default="")
 SUPABASE_SERVICE_ROLE_KEY = env("SUPABASE_SERVICE_ROLE_KEY", default="")
+
 import sys
 
 if "pytest" in sys.modules:
