@@ -115,15 +115,8 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 5,
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 
-    # ✅ THROTTLING (RATE LIMIT FIX)
-    'DEFAULT_THROTTLE_CLASSES': [
-        'rest_framework.throttling.AnonRateThrottle',
-    ],
-    'DEFAULT_THROTTLE_RATES': {
-        'anon': '10/min',
-    }
+    # REMOVE global throttle config (important)
 }
-
 # -----------------------------
 # 🔥 CRITICAL FIX: CACHE (THIS WAS MISSING)
 # -----------------------------

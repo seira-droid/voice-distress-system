@@ -1,25 +1,19 @@
 from utils.supabase_client import upload_file, get_supabase
-from drf_spectacular.utils import extend_schema
-from rest_framework import viewsets, status, serializers
+from drf_spectacular.utils import extend_schema, inline_serializer
+from rest_framework import viewsets, serializers
 from rest_framework.permissions import AllowAny
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, parser_classes
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db import connection
-import os
 from rest_framework.parsers import MultiPartParser, FormParser
+import os
+
 from .models import EmergencyContact
 from .serializers import EmergencyContactSerializer, FileUploadSerializer
 from .services.ai_service import analyze_voice_event
-from rest_framework.decorators import parser_classes
-try:
-    from django_ratelimit.decorators import ratelimit
-except ImportError:
-    # fallback decorator (no-op if package not available)
-    def ratelimit(*args, **kwargs):
-        def wrapper(func):
-            return func
-        return wrapper
+
+
 # -----------------------------
 # SERIALIZERS
 # -----------------------------
@@ -119,10 +113,10 @@ def trigger_word(request):
 
     return Response({"message": "updated"}, status=200)
 
+
 # -----------------------------
 # FILE UPLOAD API
 # -----------------------------
-from drf_spectacular.utils import OpenApiTypes, inline_serializer
 @extend_schema(
     tags=["File Upload"],
     request=inline_serializer(
@@ -133,12 +127,11 @@ from drf_spectacular.utils import OpenApiTypes, inline_serializer
     ),
     responses=dict,
 )
-
-
 @api_view(["POST"])
 @permission_classes([AllowAny])
 @parser_classes([MultiPartParser, FormParser])
 def upload_file_view(request):
+
     serializer = FileUploadSerializer(data=request.data)
 
     if not serializer.is_valid():
@@ -167,6 +160,7 @@ def upload_file_view(request):
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def get_file_url(request):
+
     file_name = request.query_params.get("file_name")
 
     if not file_name:
@@ -213,6 +207,8 @@ def analyze_voice(request):
     )
 
     return Response(result, status=200)
+
+
 # -----------------------------
 # DIAGNOSTICS API
 # -----------------------------
@@ -223,6 +219,7 @@ def analyze_voice(request):
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def diagnose_status(request):
+
     status_info = {}
 
     env_vars = [
