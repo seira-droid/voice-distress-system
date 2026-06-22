@@ -12,8 +12,14 @@ from .models import EmergencyContact
 from .serializers import EmergencyContactSerializer, FileUploadSerializer
 from .services.ai_service import analyze_voice_event
 from rest_framework.decorators import parser_classes
-from django_ratelimit.decorators import ratelimit
-
+try:
+    from django_ratelimit.decorators import ratelimit
+except ImportError:
+    # fallback decorator (no-op if package not available)
+    def ratelimit(*args, **kwargs):
+        def wrapper(func):
+            return func
+        return wrapper
 # -----------------------------
 # SERIALIZERS
 # -----------------------------
