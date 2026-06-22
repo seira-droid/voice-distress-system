@@ -12,7 +12,7 @@ from .models import EmergencyContact
 from .serializers import EmergencyContactSerializer, FileUploadSerializer
 from .services.ai_service import analyze_voice_event
 from rest_framework.decorators import parser_classes
-
+from django_ratelimit.decorators import ratelimit
 
 # -----------------------------
 # SERIALIZERS
@@ -23,10 +23,26 @@ class TriggerWordSerializer(serializers.Serializer):
 
 
 class AnalyzeVoiceRequestSerializer(serializers.Serializer):
-    trigger_phrase_detected = serializers.BooleanField(required=False)
-    transcript = serializers.CharField(required=False)
-    intensity_score = serializers.IntegerField(required=False)
-    base_risk_score = serializers.IntegerField(required=False)
+    trigger_phrase_detected = serializers.BooleanField(required=True)
+
+    transcript = serializers.CharField(
+        required=True,
+        max_length=5000,
+        allow_blank=False,
+        trim_whitespace=True
+    )
+
+    intensity_score = serializers.IntegerField(
+        required=True,
+        min_value=0,
+        max_value=100
+    )
+
+    base_risk_score = serializers.IntegerField(
+        required=True,
+        min_value=0,
+        max_value=100
+    )
 
 
 class AnalyzeVoiceResponseSerializer(serializers.Serializer):
@@ -174,12 +190,21 @@ def get_file_url(request):
 )
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@ratelimit(key='ip', rate='10/m', method='POST', block=True)
 def analyze_voice(request):
+
+    serializer = AnalyzeVoiceRequestSerializer(data=request.data)
+
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=400)
+
+    data = serializer.validated_data
+
     result = analyze_voice_event(
-        trigger_phrase_detected=request.data.get("trigger_phrase_detected"),
-        transcript=request.data.get("transcript"),
-        intensity_score=request.data.get("intensity_score"),
-        base_risk_score=request.data.get("base_risk_score"),
+        trigger_phrase_detected=data["trigger_phrase_detected"],
+        transcript=data["transcript"],
+        intensity_score=data["intensity_score"],
+        base_risk_score=data["base_risk_score"],
     )
 
     return Response(result, status=200)

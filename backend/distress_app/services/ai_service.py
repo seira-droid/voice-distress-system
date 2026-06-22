@@ -148,14 +148,7 @@ def store_voice_event(supabase, input_data, output_data):
         "send_alert": output_data["send_alert"]
     }
 
-    print("\n[SUPABASE INSERT PAYLOAD]")
-    print(record)
-
     response = supabase.table("voice_analysis_logs").insert(record).execute()
-
-    print("\n[SUPABASE RESPONSE]")
-    print(response)
-
     return response
 
 
@@ -192,8 +185,7 @@ def analyze_voice_event(
         parsed_response = parse_ai_response(ai_output)
 
     except Exception as e:
-        print("\n❌ AI PIPELINE ERROR:")
-        print(str(e))
+        print("AI pipeline failed")
         raise e
 
     alert_triggered = should_trigger_alert(parsed_response)
@@ -201,9 +193,8 @@ def analyze_voice_event(
     if supabase:
         try:
             store_voice_event(supabase, input_data, parsed_response)
-        except Exception as e:
-            print("\n❌ SUPABASE ERROR:")
-            print(str(e))
+        except Exception:
+            print("Supabase storage failed")
 
     return {
         "event_id": str(uuid.uuid4()),
