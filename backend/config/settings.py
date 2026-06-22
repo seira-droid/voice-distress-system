@@ -121,7 +121,14 @@ REST_FRAMEWORK = {
 
     # Swagger / OpenAPI schema generator
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '10/min',
+    }
 }
+
 
 # DRF SPECTACULAR (Swagger / OpenAPI settings)
 SPECTACULAR_SETTINGS = {

@@ -196,7 +196,6 @@ def get_file_url(request):
 )
 @api_view(["POST"])
 @permission_classes([AllowAny])
-@ratelimit(key='ip', rate='10/m', method='POST', block=True)
 def analyze_voice(request):
 
     serializer = AnalyzeVoiceRequestSerializer(data=request.data)
@@ -214,8 +213,6 @@ def analyze_voice(request):
     )
 
     return Response(result, status=200)
-
-
 # -----------------------------
 # DIAGNOSTICS API
 # -----------------------------
