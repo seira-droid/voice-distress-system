@@ -4,7 +4,7 @@ from unittest.mock import patch
 from rest_framework.test import APIClient
 from django.core.files.uploadedfile import SimpleUploadedFile
 
-from distress_app.models import EmergencyContact
+from distress_app.models import EmergencyContact, TriggerWord
 
 
 # -----------------------------
@@ -130,3 +130,35 @@ def test_trigger_word_get():
     response = client.get("/api/v1/trigger-word/")
 
     assert response.status_code == 200
+
+    data = response.json()
+
+    assert data == {"word": "help"}
+
+
+@pytest.mark.django_db
+def test_trigger_word_put_updates_word():
+    client = APIClient()
+
+    response = client.put(
+        "/api/v1/trigger-word/",
+        {"word": "save me"},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"word": "save me"}
+    assert TriggerWord.objects.get(user_id="test-user").word == "save me"
+
+
+@pytest.mark.django_db
+def test_trigger_word_put_rejects_blank_word():
+    client = APIClient()
+
+    response = client.put(
+        "/api/v1/trigger-word/",
+        {"word": "   "},
+        format="json",
+    )
+
+    assert response.status_code == 400

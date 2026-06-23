@@ -11,7 +11,7 @@ from rest_framework.throttling import AnonRateThrottle
 import os
 from drf_spectacular.utils import extend_schema
 
-from .models import EmergencyContact
+from .models import EmergencyContact, TriggerWord
 from .serializers import (
     EmergencyContactSerializer,
     FileUploadSerializer,
@@ -45,23 +45,35 @@ class EmergencyContactViewSet(viewsets.ModelViewSet):
 # -----------------------------
 class TriggerWordSerializer(serializers.Serializer):
     word = serializers.CharField(required=True)
+
+    def validate_word(self, value):
+        value = value.strip().lower()
+
+        if not value:
+            raise serializers.ValidationError("Trigger word cannot be empty.")
+
+        if len(value.split()) > 3:
+            raise serializers.ValidationError("Trigger word must be 1 to 3 words.")
+
+        return value
+
+
 @extend_schema(
     request=TriggerWordSerializer,
     responses=TriggerWordSerializer,
-    tags=["v1"],
+    tags=["Trigger Word"],
 )
-
 @api_view(["GET", "PUT"])
 @permission_classes([AllowAny])
 def trigger_word(request):
-    supabase = get_supabase()
     user_id = "test-user"
-    table = supabase.table("trigger_word")
 
     if request.method == "GET":
-        result = table.select("*").execute()
-        data = getattr(result, "data", []) or []
-        return Response([r for r in data if r.get("user_id") == user_id])
+        trigger, _ = TriggerWord.objects.get_or_create(
+            user_id=user_id,
+            defaults={"word": "help"},
+        )
+        return Response({"word": trigger.word}, status=200)
 
     serializer = TriggerWordSerializer(data=request.data)
     if not serializer.is_valid():
@@ -69,9 +81,12 @@ def trigger_word(request):
 
     word = serializer.validated_data["word"]
 
-    table.update({"word": word}).eq("user_id", user_id).execute()
+    TriggerWord.objects.update_or_create(
+        user_id=user_id,
+        defaults={"word": word},
+    )
 
-    return Response({"message": "updated"}, status=200)
+    return Response({"word": word}, status=200)
 
 
 # -----------------------------

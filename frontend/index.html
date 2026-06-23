@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Voice Distress System</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Voice Distress System</p>
+          <h1>Safety API Console</h1>
+        </div>
+        <label class="api-control">
+          <span>API base URL</span>
+          <input id="apiBase" type="url" value="https://voice-distress-system.onrender.com/api/v1" />
+        </label>
+      </header>
+
+      <section class="status-strip" aria-live="polite">
+        <div>
+          <span class="status-dot" id="statusDot"></span>
+          <strong id="statusTitle">Ready</strong>
+        </div>
+        <p id="statusText">Connect to the deployed backend and manage distress settings.</p>
+      </section>
+
+      <section class="grid">
+        <article class="panel primary-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Trigger Word</p>
+              <h2>Wake phrase setup</h2>
+            </div>
+            <button id="refreshTrigger" class="icon-button" type="button" title="Refresh trigger word">Refresh</button>
+          </div>
+          <form id="triggerForm" class="form-stack">
+            <label>
+              <span>Current trigger word</span>
+              <input id="triggerWord" name="word" type="text" maxlength="100" placeholder="help" required />
+            </label>
+            <button type="submit">Save Trigger Word</button>
+          </form>
+        </article>
+
+        <article class="panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Emergency Contacts</p>
+              <h2>Add contact</h2>
+            </div>
+          </div>
+          <form id="contactForm" class="form-stack">
+            <label>
+              <span>Name</span>
+              <input name="name" type="text" placeholder="Alice" required />
+            </label>
+            <label>
+              <span>Phone number</span>
+              <input name="phone_number" type="tel" placeholder="9876543210" required />
+            </label>
+            <label>
+              <span>Relationship</span>
+              <input name="relationship" type="text" placeholder="Friend" required />
+            </label>
+            <button type="submit">Add Contact</button>
+          </form>
+        </article>
+
+        <article class="panel wide">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Voice Analysis</p>
+              <h2>Risk check</h2>
+            </div>
+          </div>
+          <form id="analysisForm" class="analysis-grid">
+            <label class="toggle-row">
+              <input name="trigger_phrase_detected" type="checkbox" checked />
+              <span>Trigger phrase detected</span>
+            </label>
+            <label>
+              <span>Transcript</span>
+              <textarea name="transcript" rows="4" placeholder="I need help, I am scared"></textarea>
+            </label>
+            <label>
+              <span>Intensity score</span>
+              <input name="intensity_score" type="number" min="0" max="100" value="80" />
+            </label>
+            <label>
+              <span>Base risk score</span>
+              <input name="base_risk_score" type="number" min="0" max="100" value="60" />
+            </label>
+            <button type="submit">Analyze Voice Event</button>
+          </form>
+        </article>
+
+        <article class="panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Contacts</p>
+              <h2>Saved list</h2>
+            </div>
+            <button id="refreshContacts" class="icon-button" type="button" title="Refresh contacts">Refresh</button>
+          </div>
+          <div id="contactsList" class="list empty">No contacts loaded.</div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Response</p>
+              <h2>Latest API output</h2>
+            </div>
+          </div>
+          <pre id="output">{}</pre>
+        </article>
+      </section>
+    </main>
+    <script src="app.js"></script>
+  </body>
+</html>

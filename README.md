@@ -94,6 +94,21 @@ Run Migrations
 python manage.py migrate
 Start Server
 python manage.py runserver
+
+Frontend
+
+A lightweight API console is available in `frontend/`.
+
+Open `frontend/index.html` in a browser. It uses the deployed Render API by default:
+
+https://voice-distress-system.onrender.com/api/v1
+
+Deployment Note
+
+After pulling backend changes, run migrations before testing the trigger word endpoint:
+
+python manage.py migrate
+
 API Documentation
 Production Swagger UI
 https://voice-distress-system.onrender.com/api/schema/swagger-ui/
