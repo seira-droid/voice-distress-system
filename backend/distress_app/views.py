@@ -7,66 +7,27 @@ from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db import connection
 from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.throttling import AnonRateThrottle
 import os
 
 from .models import EmergencyContact
-from .serializers import EmergencyContactSerializer, FileUploadSerializer
+from .serializers import (
+    EmergencyContactSerializer,
+    FileUploadSerializer,
+    FileURLSerializer,
+)
 from .services.ai_service import analyze_voice_event
-from rest_framework.throttling import AnonRateThrottle
 
+
+# -----------------------------
+# THROTTLE
+# -----------------------------
 class BurstThrottle(AnonRateThrottle):
     rate = '10/min'
 
 
 # -----------------------------
-# SERIALIZERS
-# -----------------------------
-class TriggerWordSerializer(serializers.Serializer):
-    word = serializers.CharField(required=True)
-    audio = serializers.FileField(required=False)
-
-
-class AnalyzeVoiceRequestSerializer(serializers.Serializer):
-    trigger_phrase_detected = serializers.BooleanField(required=True)
-
-    transcript = serializers.CharField(
-        required=True,
-        max_length=5000,
-        allow_blank=False,
-        trim_whitespace=True
-    )
-
-    intensity_score = serializers.IntegerField(
-        required=True,
-        min_value=0,
-        max_value=100
-    )
-
-    base_risk_score = serializers.IntegerField(
-        required=True,
-        min_value=0,
-        max_value=100
-    )
-
-
-class AnalyzeVoiceResponseSerializer(serializers.Serializer):
-    risk_level = serializers.CharField(required=False)
-    score = serializers.IntegerField(required=False)
-
-
-class DiagnoseResponseSerializer(serializers.Serializer):
-    environment_variables = serializers.DictField()
-    database_connection = serializers.CharField()
-    supabase_initialization = serializers.CharField()
-
-
-class FileURLSerializer(serializers.Serializer):
-    file_name = serializers.CharField()
-    url = serializers.CharField()
-
-
-# -----------------------------
-# Emergency Contact CRUD API
+# EMERGENCY CONTACT API
 # -----------------------------
 @extend_schema(tags=["Emergency Contacts"])
 class EmergencyContactViewSet(viewsets.ModelViewSet):
@@ -79,13 +40,12 @@ class EmergencyContactViewSet(viewsets.ModelViewSet):
 
 
 # -----------------------------
-# Trigger Word API
+# TRIGGER WORD API (IMPORTANT FIX INCLUDED)
 # -----------------------------
-@extend_schema(
-    tags=["Trigger Word"],
-    request=TriggerWordSerializer,
-    responses=dict,
-)
+class TriggerWordSerializer(serializers.Serializer):
+    word = serializers.CharField(required=True)
+
+
 @api_view(["GET", "PUT"])
 @permission_classes([AllowAny])
 def trigger_word(request):
@@ -103,33 +63,26 @@ def trigger_word(request):
         return Response(serializer.errors, status=400)
 
     word = serializer.validated_data["word"]
-    audio_file = request.FILES.get("audio")
 
-    audio_url = None
-    if audio_file:
-        audio_url = (upload_file(audio_file) or {}).get("url")
-
-    table.insert({
-        "user_id": user_id,
-        "word": word,
-        "audio_url": audio_url,
-    }).execute()
+    table.update({"word": word}).eq("user_id", user_id).execute()
 
     return Response({"message": "updated"}, status=200)
 
 
 # -----------------------------
-# FILE UPLOAD API
+# FILE UPLOAD API (FIXED SWAGGER + MULTIPART)
 # -----------------------------
 @extend_schema(
     tags=["File Upload"],
-    request=inline_serializer(
-        name="FileUploadRequest",
+    request=FileUploadSerializer,
+    responses=inline_serializer(
+        name="FileUploadResponse",
         fields={
-            "file": serializers.FileField(),
+            "message": serializers.CharField(),
+            "file_name": serializers.CharField(),
+            "url": serializers.CharField(),
         },
     ),
-    responses=dict,
 )
 @api_view(["POST"])
 @permission_classes([AllowAny])
@@ -157,8 +110,18 @@ def upload_file_view(request):
 # -----------------------------
 # GET FILE URL API
 # -----------------------------
+from drf_spectacular.utils import extend_schema, OpenApiParameter
+
 @extend_schema(
     tags=["File Upload"],
+    parameters=[
+        OpenApiParameter(
+            name="file_name",
+            type=str,
+            location=OpenApiParameter.QUERY,
+            required=True,
+        )
+    ],
     responses=FileURLSerializer,
 )
 @api_view(["GET"])
@@ -187,28 +150,15 @@ def get_file_url(request):
 # -----------------------------
 # VOICE ANALYSIS API
 # -----------------------------
-@extend_schema(
-    tags=["Voice Analysis"],
-    request=AnalyzeVoiceRequestSerializer,
-    responses=AnalyzeVoiceResponseSerializer,
-)
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def analyze_voice(request):
 
     throttle = BurstThrottle()
     if not throttle.allow_request(request, None):
-        return Response(
-            {"detail": "Rate limit exceeded"},
-            status=429
-        )
+        return Response({"detail": "Rate limit exceeded"}, status=429)
 
-    serializer = AnalyzeVoiceRequestSerializer(data=request.data)
-
-    if not serializer.is_valid():
-        return Response(serializer.errors, status=400)
-
-    data = serializer.validated_data
+    data = request.data
 
     result = analyze_voice_event(
         trigger_phrase_detected=data["trigger_phrase_detected"],
@@ -218,13 +168,11 @@ def analyze_voice(request):
     )
 
     return Response(result, status=200)
+
+
 # -----------------------------
 # DIAGNOSTICS API
 # -----------------------------
-@extend_schema(
-    tags=["Diagnostics"],
-    responses=DiagnoseResponseSerializer,
-)
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def diagnose_status(request):
