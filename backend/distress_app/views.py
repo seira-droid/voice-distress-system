@@ -9,6 +9,7 @@ from django.db import connection
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.throttling import AnonRateThrottle
 import os
+from drf_spectacular.utils import extend_schema
 
 from .models import EmergencyContact
 from .serializers import (
@@ -44,7 +45,11 @@ class EmergencyContactViewSet(viewsets.ModelViewSet):
 # -----------------------------
 class TriggerWordSerializer(serializers.Serializer):
     word = serializers.CharField(required=True)
-
+@extend_schema(
+    request=TriggerWordSerializer,
+    responses=TriggerWordSerializer,
+    tags=["v1"],
+)
 
 @api_view(["GET", "PUT"])
 @permission_classes([AllowAny])
