@@ -5,11 +5,11 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ("distress_app", "0001_initial"),
-    ]
+   dependencies = [
+    ("distress_app", "0002_alertlog_user_id_emergencycontact_user_id_and_more"),
+]
 
-    operations = [
+operations = [
         migrations.CreateModel(
             name="TriggerWord",
             fields=[
