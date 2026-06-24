@@ -6,12 +6,27 @@ from utils.ai_client import AIClient
 # LOAD SYSTEM PROMPT
 # ----------------------------
 def load_system_prompt():
-    project_root = Path(__file__).resolve().parents[3]
-    prompt_file = project_root / "docs" / "prompts.md"
+    # Try multiple possible locations for the prompt file
+    base = Path(__file__).resolve()
+    
+    candidates = [
+        base.parents[3] / "docs" / "prompts.md",  # original path
+        base.parents[2] / "docs" / "prompts.md",
+        base.parents[1] / "docs" / "prompts.md",
+        Path("/opt/render/project/src/docs/prompts.md"),  # Render deploy path
+    ]
 
-    with open(prompt_file, "r", encoding="utf-8") as file:
-        return file.read()
+    for path in candidates:
+        if path.exists():
+            return path.read_text(encoding="utf-8")
 
+    # Fallback so the server doesn't crash if file is missing
+    return (
+        "You are a distress detection AI. "
+        "Analyze the voice event and return a JSON response with fields: "
+        "classification, confidence_score, risk_score, category, summary, "
+        "recommendations, send_alert."
+    )
 
 # ----------------------------
 # BUILD AI REQUEST

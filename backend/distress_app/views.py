@@ -272,3 +272,116 @@ def diagnose_status(request):
         status_info["supabase_initialization"] = f"failed: {str(e)}"
 
     return Response(status_info, status=200)
+from .services.wake_word_service import detect_wake_word
+from .services.speech_to_text_service import transcribe_audio_bytes
+from .services.distress_analysis_service import (
+    calculate_base_risk, get_risk_level, should_send_alert
+)
+
+
+@extend_schema(tags=["Voice Analysis"])
+@api_view(["POST"])
+@permission_classes([AllowAny])
+@parser_classes([MultiPartParser, FormParser])
+def record_and_analyze(request):
+    """
+    Full pipeline:
+    1. Receive audio file from browser
+    2. Transcribe with Whisper
+    3. Detect wake word
+    4. Calculate distress score
+    5. Run AI analysis
+    6. Send Telegram alert if threshold exceeded
+    7. Return full result
+    """
+    audio_file = request.FILES.get("audio")
+    user_lat = request.data.get("user_latitude")
+    user_lon = request.data.get("user_longitude")
+
+    if not audio_file:
+        return Response({"error": "No audio file provided"}, status=400)
+
+    # Step 1 — Transcribe
+    try:
+        audio_bytes = audio_file.read()
+        stt_result = transcribe_audio_bytes(audio_bytes, audio_file.name)
+        transcript = stt_result.get("transcript", "")
+    except Exception as e:
+        return Response({"error": "Transcription failed", "detail": str(e)}, status=500)
+
+    # Step 2 — Wake word detection
+    trigger_obj = TriggerWord.objects.filter(user_id="test-user").first()
+    trigger_word_text = trigger_obj.word if trigger_obj else "help"
+    wake_word_detected = detect_wake_word(transcript, trigger_word_text)
+
+    # Step 3 — Base risk score
+    intensity_score = float(request.data.get("intensity_score", 0.5))
+    base_risk = calculate_base_risk(transcript, intensity_score)
+
+    # Step 4 — AI analysis
+    try:
+        result = analyze_voice_event(
+            trigger_phrase_detected=wake_word_detected,
+            transcript=transcript,
+            intensity_score=intensity_score,
+            base_risk_score=base_risk,
+        )
+    except Exception as e:
+        return Response({"error": "AI analysis failed", "detail": str(e)}, status=500)
+
+    risk_score = result.get("risk_score", 0)
+    risk_level = get_risk_level(risk_score)
+
+    # Step 5 — Save event
+    event = VoiceEvent.objects.create(
+        transcript=transcript,
+        trigger_phrase_detected=wake_word_detected,
+        intensity_score=intensity_score,
+        base_risk_score=base_risk,
+        classification=result.get("classification", ""),
+        risk_score=risk_score,
+        confidence_score=result.get("confidence_score", 0),
+        category=result.get("category", ""),
+        summary=result.get("summary", ""),
+        recommendations=result.get("recommendations", []),
+        send_alert=result.get("send_alert", False),
+        alert_triggered=result.get("alert_triggered", False),
+        user_latitude=float(user_lat) if user_lat else None,
+        user_longitude=float(user_lon) if user_lon else None,
+    )
+
+    # Step 6 — Telegram alert
+    threshold = RiskThreshold.get_threshold()
+    telegram_sent = False
+
+    if should_send_alert(risk_score, threshold):
+        contacts = get_prioritized_contacts(
+            float(user_lat) if user_lat else None,
+            float(user_lon) if user_lon else None,
+        )
+        contacts_with_telegram = [c for c in contacts if c.telegram_chat_id]
+        if contacts_with_telegram:
+            count = send_alerts_to_contacts(contacts_with_telegram, {
+                **result,
+                "wake_word": trigger_word_text,
+                "transcript": transcript,
+                "risk_level": risk_level,
+            })
+            telegram_sent = count > 0
+            event.telegram_sent = telegram_sent
+            event.save()
+
+    return Response({
+        "event_id": event.id,
+        "transcript": transcript,
+        "wake_word_detected": wake_word_detected,
+        "wake_word": trigger_word_text,
+        "risk_score": risk_score,
+        "risk_level": risk_level,
+        "classification": result.get("classification"),
+        "summary": result.get("summary"),
+        "recommendations": result.get("recommendations", []),
+        "alert_triggered": result.get("alert_triggered", False),
+        "telegram_sent": telegram_sent,
+        "threshold_used": threshold,
+    }, status=200)
