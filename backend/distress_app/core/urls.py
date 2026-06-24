@@ -6,6 +6,9 @@ from ..views import (
     upload_file_view,
     get_file_url,
     analyze_voice,
+    record_and_analyze,
+    risk_threshold,
+    event_log,
 )
 
 router = DefaultRouter()
@@ -13,9 +16,11 @@ router.register(r"emergency-contacts", EmergencyContactViewSet)
 
 urlpatterns = [
     path("", include(router.urls)),
-
     path("trigger-word/", trigger_word, name="trigger-word"),
     path("upload-file/", upload_file_view, name="upload-file"),
     path("file-url/", get_file_url, name="file-url"),
     path("voice/analyze/", analyze_voice, name="analyze-voice"),
+    path("voice/record-analyze/", record_and_analyze, name="record-analyze"),
+    path("risk-threshold/", risk_threshold, name="risk-threshold"),
+    path("events/", event_log, name="event-log"),
 ]
