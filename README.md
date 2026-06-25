@@ -1,57 +1,213 @@
-Voice Distress System
-Overview
+# 🚨 AI-Powered Emergency Voice Intelligence & Risk Alert System
 
-Voice Distress System is a safety-focused backend application built using Django and Django REST Framework. The system analyzes voice recordings and speech-derived transcripts to identify potential distress situations and generate risk assessments. It provides emergency contact management, trigger word management, file storage, and AI-assisted distress analysis through REST APIs.
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white" />
+  <img src="https://img.shields.io/badge/Django%20REST-5.0-092E20?style=for-the-badge&logo=django&logoColor=white" />
+  <img src="https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white" />
+  <img src="https://img.shields.io/badge/Anthropic-Claude%203%20Haiku-D97757?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/OpenAI-Whisper-412991?style=for-the-badge&logo=openai&logoColor=white" />
+  <img src="https://img.shields.io/badge/Telegram-Bot%20API-26A5E4?style=for-the-badge&logo=telegram&logoColor=white" />
+  <img src="https://img.shields.io/badge/Deployed-Render-46E3B7?style=for-the-badge&logo=render&logoColor=white" />
+  <img src="https://img.shields.io/badge/Tests-14%2F14%20Passing-brightgreen?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Status-In%20Development-orange?style=for-the-badge" />
+</p>
 
-The project is designed to evolve beyond transcript analysis by incorporating advanced acoustic voice analysis techniques such as pitch, tone, speech rate, stress patterns, and emotional indicators to improve distress detection accuracy.
+<p align="center">
+  <b>An AI system that sends emergency alerts from a spoken trigger phrase — no phone unlock, no button press required.</b>
+</p>
 
-Problem Statement
+<p align="center">
+  <a href="https://voice-distress-system.onrender.com/api/schema/swagger-ui/">📡 Live API (Swagger UI)</a> ·
+  <a href="https://voice-distress-system.onrender.com/api/schema/">OpenAPI Schema</a> ·
+  <a href="https://seira-elsa-biju-s-team.docs.buildwithfern.com/voice-distress-system-api/">Fern Docs</a> ·
+  <a href="https://voice-distress-system.onrender.com">Live Demo</a>
+</p>
 
-In emergency situations, individuals may not always be able to manually contact emergency services or explain their condition. Traditional safety systems often depend on direct user interaction, which may not be possible during distress. The Voice Distress System aims to support emergency response workflows by analyzing voice recordings, detecting distress indicators, assessing risk levels, and providing structured information that can be used for timely intervention.
+---
 
-Features
-Emergency Contact Management
-Create emergency contacts
-Retrieve all emergency contacts
-Retrieve contact by ID
-Update contact information
-Delete emergency contacts
-Trigger Word Management
-Retrieve current trigger word
-Update trigger word dynamically
-File Management
-Upload audio files
-Retrieve uploaded file URLs
-Store audio resources for analysis
-Voice Distress Analysis
-Process uploaded voice recordings
-Analyze speech-derived transcripts
-Detect distress-related phrases
-Detect trigger words
-Calculate intensity score
-Generate risk assessment
-Return structured analysis results
-API Documentation
-Swagger UI documentation
-OpenAPI schema via DRF Spectacular
-Published Fern documentation
-Technology Stack
-Backend
-Python
-Django
-Django REST Framework
-API Documentation
-DRF Spectacular
-Swagger UI
-OpenAPI Specification
-Fern Documentation
-Database
-PostgreSQL (Supabase)
-Tools
-Git
-GitHub
-Postman
-Project Structure
+## 💡 Why I Built This
+
+When I moved to an unfamiliar city alone, I realised something unsettling — there were moments where, if something went wrong, I wouldn't be able to reach my phone and call for help.
+
+We say *"Alexa, turn off the lights"* and it just works. No unlock. No typing. No app.
+
+Why can't we have the same thing for emergencies?
+
+Not a fixed keyword — because those trigger accidentally. Something smarter. Something personal. Something that understands *context* before deciding to fire an alert.
+
+That's what this project is.
+
+---
+
+## 🧠 How It Works
+
+```mermaid
+flowchart TD
+    User[🎙️ User speaks trigger phrase] --> Whisper[OpenAI Whisper\nTranscription + Voice Intensity]
+    Whisper --> Rule[Rule-based Engine\nBase Risk Score]
+    Rule --> Claude[Anthropic Claude 3 Haiku\nContext Classification + Final Risk Score 0–100]
+    Claude -->|Score > 80| Alert[📲 Telegram Alert\nSent to all emergency contacts]
+    Claude -->|Score ≤ 80| Silent[🔇 System stays silent\nNo false alarm]
+    Alert --> Log[(Supabase\nImmutable Audit Log)]
+    Silent --> Log
+```
+
+**End-to-end in under 3 seconds.**
+
+---
+
+## ✅ Features
+
+### Emergency Contact Management
+- Add, retrieve, update, and delete emergency contacts
+- Supports full replace or partial field updates
+
+### Trigger Word Management
+- Set any custom trigger phrase — no fixed reserved words
+- Update dynamically at any time
+
+### File Management
+- Upload audio files and retrieve storage URLs
+
+### Voice Distress Analysis
+- Transcription via OpenAI Whisper
+- Voice intensity scoring (pitch, speed, tremor)
+- AI risk classification via Claude 3 Haiku
+- Automated Telegram alert if risk score > 80
+- Immutable event log stored in Supabase
+
+### Developer Experience
+- Full Swagger UI documentation
+- OpenAPI schema
+- Published Fern documentation
+- 14/14 tests passing (Pytest + Supabase integration + RLS validation)
+
+---
+
+## 🛠️ Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Backend API | Python 3.12 + Django REST Framework 5 |
+| Database | Supabase PostgreSQL |
+| Auth & Security | Supabase Auth + Row-Level Security |
+| Voice Processing | OpenAI Whisper API |
+| AI Engine | Anthropic Claude 3 Haiku (classification + function calling) |
+| Alerting | Telegram Bot API |
+| API Docs | DRF Spectacular · Swagger UI · Fern |
+| Deployment | Render |
+
+---
+
+## 📸 Screenshots
+
+> _Swagger UI_
+> https://drive.google.com/file/d/1IJw7JGmsvJKFYnIqlLo-yvCz_FgLbDHw/view?usp=drive_link
+
+> _Telegram alert example_
+> https://drive.google.com/file/d/1n08WMhuLHqi-r4bel-s7QRxwFLIkL5FH/view?usp=sharing
+
+---
+
+## ⚙️ Installation & Setup
+
+### 1. Clone the repo
+
+```bash
+git clone https://github.com/seira-droid/voice-distress-system
+cd voice-distress-system
+```
+
+### 2. Create and activate virtual environment
+
+```bash
+python -m venv venv
+
+# Windows
+venv\Scripts\activate
+
+# Linux / macOS
+source venv/bin/activate
+```
+
+### 3. Install dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### 4. Set environment variables
+
+Create a `.env` file:
+
+```env
+SECRET_KEY=your-secret-key
+DEBUG=True
+DATABASE_URL=your-supabase-postgres-url
+SUPABASE_URL=your-supabase-url
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+OPENAI_API_KEY=your-openai-key
+ANTHROPIC_API_KEY=your-anthropic-key
+TELEGRAM_BOT_TOKEN=your-telegram-bot-token
+```
+
+### 5. Run migrations and start server
+
+```bash
+python manage.py migrate
+python manage.py runserver
+```
+
+> **Note:** After pulling backend changes, always run `python manage.py migrate` before testing the trigger word endpoint.
+
+---
+
+## 📡 API Endpoints
+
+### Emergency Contacts
+
+| Method | Endpoint |
+|---|---|
+| GET | `/api/v1/emergency-contacts/` |
+| POST | `/api/v1/emergency-contacts/` |
+| GET | `/api/v1/emergency-contacts/{id}/` |
+| PUT | `/api/v1/emergency-contacts/{id}/` |
+| PATCH | `/api/v1/emergency-contacts/{id}/` |
+| DELETE | `/api/v1/emergency-contacts/{id}/` |
+
+### Trigger Word
+
+| Method | Endpoint |
+|---|---|
+| GET | `/api/v1/trigger-word/` |
+| PUT | `/api/v1/trigger-word/` |
+
+### File Management
+
+| Method | Endpoint |
+|---|---|
+| POST | `/api/v1/upload-file/` |
+| GET | `/api/v1/file-url/` |
+
+### Voice Analysis
+
+| Method | Endpoint |
+|---|---|
+| POST | `/api/v1/voice/analyze/` |
+
+### Health Check
+
+| Method | Endpoint |
+|---|---|
+| GET | `/api/v1/diagnose/` |
+
+Full interactive docs: [Swagger UI →](https://voice-distress-system.onrender.com/api/schema/swagger-ui/)
+
+---
+
+## 🗂️ Project Structure
+
+```
 voice-distress-system/
 │
 ├── backend/
@@ -61,146 +217,55 @@ voice-distress-system/
 │   ├── manage.py
 │   └── requirements.txt
 │
+├── frontend/          # Lightweight API console (in progress)
+│   └── index.html
+│
 ├── docs/
 ├── CONTRIBUTING.md
 └── README.md
-Installation & Setup
-Clone Repository
-git clone <https://github.com/seira-droid/voice-distress-system>
-cd voice-distress-system
-Create Virtual Environment
-python -m venv venv
-Activate Virtual Environment
+```
 
-Windows:
+---
 
-venv\Scripts\activate
+## 🧪 Testing
 
-Linux/macOS:
+- **14/14 tests passing**
+- Pytest configured
+- Supabase integration tests included
+- RLS (Row-Level Security) validation tests included
+- All endpoints verified on live Render deployment via Postman + Swagger
 
-source venv/bin/activate
-Install Dependencies
-pip install -r requirements.txt
-Environment Variables
+---
 
-Create .env file:
+## 🚧 Roadmap
 
-SECRET_KEY=your-secret-key
-DEBUG=True
-DATABASE_URL=your-supabase-postgres-url
-SUPABASE_URL=your-supabase-url
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-Run Migrations
-python manage.py migrate
-Start Server
-python manage.py runserver
+- [x] Emergency contact management (CRUD)
+- [x] Custom trigger word per user
+- [x] Audio file upload + URL retrieval
+- [x] Voice transcription + intensity analysis
+- [x] Claude AI risk scoring + classification
+- [x] Telegram alert system
+- [x] Immutable audit log
+- [x] Full Swagger + Fern documentation
+- [ ] Frontend UI (voice recording button — in progress)
+- [ ] Real-time voice processing
+- [ ] Acoustic emotion detection (tone, pitch, stress)
+- [ ] SMS alert support
+- [ ] Location tracking integration
+- [ ] Mobile app
 
-Frontend
+---
 
-A lightweight API console is available in `frontend/`.
+## 👩‍💻 Author
 
-Open `frontend/index.html` in a browser. It uses the deployed Render API by default:
+**Seira Elsa Biju**
+AI & Python Developer Intern · Aspiring ML/AI Engineer
 
-https://voice-distress-system.onrender.com/api/v1
+[![GitHub](https://img.shields.io/badge/GitHub-seira--droid-181717?style=flat-square&logo=github)](https://github.com/seira-droid)
+[![LinkedIn]https://www.linkedin.com/in/seira-elsa-biju-215782292/
 
-Deployment Note
+---
 
-After pulling backend changes, run migrations before testing the trigger word endpoint:
+## 📄 License
 
-python manage.py migrate
-
-API Documentation
-Production Swagger UI
-https://voice-distress-system.onrender.com/api/schema/swagger-ui/
-OpenAPI Schema
-https://voice-distress-system.onrender.com/api/schema/
-Published Documentation
-https://seira-elsa-biju-s-team.docs.buildwithfern.com/voice-distress-system-api/
-Live Demo
-https://voice-distress-system.onrender.com
-API Endpoints
-Emergency Contacts
-Method	Endpoint
-GET	/api/v1/emergency-contacts/
-POST	/api/v1/emergency-contacts/
-GET	/api/v1/emergency-contacts/{id}/
-PUT	/api/v1/emergency-contacts/{id}/
-PATCH	/api/v1/emergency-contacts/{id}/
-DELETE	/api/v1/emergency-contacts/{id}/
-Trigger Word
-Method	Endpoint
-GET	/api/v1/trigger-word/
-PUT	/api/v1/trigger-word/
-File Management
-Method	Endpoint
-POST	/api/v1/upload-file/
-GET	/api/v1/file-url/
-Voice Analysis
-Method	Endpoint
-POST	/api/v1/voice/analyze/
-Health Check
-Method	Endpoint
-GET	/api/v1/diagnose/
-Testing
-Postman
-
-All endpoints tested using Postman collections.
-
-Swagger UI
-
-Interactive testing available via Swagger.
-
-Production Validation
-
-All endpoints verified on live Render deployment.
-
-Test Coverage
-14/14 tests passing
-Pytest configured
-Supabase integration tests included
-RLS validation tests included
-
-
-Architecture
-## Architecture
-
-### System Flow
-
-```mermaid
-flowchart TD
-    User[User] --> API[Django REST API]
-
-    API --> EC[Emergency Contacts Module]
-    API --> TW[Trigger Word Module]
-    API --> FU[File Upload Module]
-    API --> VA[Voice Analysis Module]
-
-    EC --> DB[(PostgreSQL - Supabase)]
-    TW --> DB
-    VA --> DB
-
-    FU --> STORAGE[Supabase Storage]
-    VA --> AI[AI Analysis Engine]
-
-    AI --> DB
-
-    API --> DOCS[Swagger / OpenAPI Docs]
-    DOCS --> User
-
-
-Future Improvements
-Real-time voice processing
-Acoustic emotion detection (tone, pitch, stress)
-Panic detection without trigger words
-SMS alert system
-Live emergency notifications
-Location tracking integration
-Mobile app support
-Multi-language analysis
-
-
-Contributors
-Seira Elsa Biju
-
-License
-Educational / internship project use only.
+Educational / internship project. All rights reserved.
