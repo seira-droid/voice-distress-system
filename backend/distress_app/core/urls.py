@@ -9,14 +9,13 @@ from ..views import (
 )
 
 router = DefaultRouter()
-
 router.register(r"emergency-contacts", EmergencyContactViewSet)
 
 urlpatterns = [
     path("", include(router.urls)),
 
-    path("v1/trigger-word/", trigger_word),
-    path("v1/upload-file/", upload_file_view),
-    path("v1/file-url/", get_file_url),
-    path("v1/voice/analyze/", analyze_voice),
+    path("trigger-word/", trigger_word, name="trigger-word"),
+    path("upload-file/", upload_file_view, name="upload-file"),
+    path("file-url/", get_file_url, name="file-url"),
+    path("voice/analyze/", analyze_voice, name="analyze-voice"),
 ]

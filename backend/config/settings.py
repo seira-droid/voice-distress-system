@@ -4,19 +4,23 @@ import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Initialize environment reader
 env = environ.Env()
 
-# Load .env from project root:
-# voice-distress-system/.env
 environ.Env.read_env(BASE_DIR.parent / ".env")
 
-# SECURITY
 SECRET_KEY = env("SECRET_KEY")
-DEBUG = env.bool("DEBUG", default=True)
+DEBUG = env.bool("DEBUG", default=False)
+
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[])
 
-# APPLICATIONS
+railway_domain = env("RAILWAY_PUBLIC_DOMAIN", default="")
+if railway_domain:
+    ALLOWED_HOSTS.append(railway_domain)
+
+CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
+if railway_domain:
+    CSRF_TRUSTED_ORIGINS.append(f"https://{railway_domain}")
+
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -25,6 +29,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
+    'corsheaders',
     'django_filters',
     'corsheaders',
 
@@ -33,9 +38,11 @@ INSTALLED_APPS = [
     'drf_spectacular',
 ]
 
-
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
+
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -83,8 +90,22 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-# REST FRAMEWORK CONFIGURATION
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
+
+CORS_ALLOW_ALL_ORIGINS = True
+
+# -----------------------------
+# DRF CONFIGURATION
+# -----------------------------
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
@@ -94,8 +115,6 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 5,
-
-    # Swagger / OpenAPI schema generator
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 
     # Centralized exception handler
@@ -112,12 +131,15 @@ REST_FRAMEWORK = {
     }
 }
 
-# DRF SPECTACULAR (Swagger / OpenAPI settings)
+# -----------------------------
+# DRF SPECTACULAR
+# -----------------------------
 SPECTACULAR_SETTINGS = {
     "TITLE": "Voice Distress System API",
     "DESCRIPTION": "API documentation for backend services",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    "COMPONENT_SPLIT_REQUEST": True,
 }
 
 SUPABASE_URL = env("SUPABASE_URL", default="")

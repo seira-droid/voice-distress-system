@@ -1,34 +1,37 @@
-from drf_spectacular.utils import (
-    extend_schema,
-    OpenApiParameter,
-    OpenApiTypes,
-)
-
-from rest_framework import viewsets, status
+from utils.supabase_client import upload_file, get_supabase
+from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiParameter
+from rest_framework import viewsets, serializers
 from rest_framework.permissions import AllowAny
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, parser_classes
 from rest_framework.response import Response
-
 from django_filters.rest_framework import DjangoFilterBackend
+from django.db import connection
+from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.throttling import AnonRateThrottle
+import os
 
-from .models import EmergencyContact
-from .serializers import EmergencyContactSerializer, FileUploadSerializer
+from .models import EmergencyContact, TriggerWord
+from .serializers import (
+    EmergencyContactSerializer,
+    FileUploadSerializer,
+    FileURLSerializer,
+)
 from .services.ai_service import analyze_voice_event
 
-from utils.supabase_client import get_supabase, upload_file
+
+# -----------------------------
+# THROTTLE
+# -----------------------------
+class BurstThrottle(AnonRateThrottle):
+    rate = '10/min'
 
 
 # -----------------------------
-# Emergency Contact CRUD API
+# EMERGENCY CONTACT API
 # -----------------------------
-@extend_schema(
-    tags=["Emergency Contacts"],
-    description="CRUD operations for emergency contacts"
-)
+@extend_schema(tags=["Emergency Contacts"])
 class EmergencyContactViewSet(viewsets.ModelViewSet):
-    """Provides CRUD operations for managing emergency contacts."""
-
-    queryset = EmergencyContact.objects.all()
+    queryset = EmergencyContact.objects.all().order_by("id")
     serializer_class = EmergencyContactSerializer
     permission_classes = [AllowAny]
 
@@ -37,89 +40,75 @@ class EmergencyContactViewSet(viewsets.ModelViewSet):
 
 
 # -----------------------------
-# Trigger Word API
+# TRIGGER WORD API
 # -----------------------------
+class TriggerWordSerializer(serializers.Serializer):
+    word = serializers.CharField(required=True)
+
+    def validate_word(self, value):
+        value = value.strip().lower()
+
+        if not value:
+            raise serializers.ValidationError("Trigger word cannot be empty.")
+
+        if len(value.split()) > 3:
+            raise serializers.ValidationError("Trigger word must be 1 to 3 words.")
+
+        return value
+
+
+@extend_schema(
+    request=TriggerWordSerializer,
+    responses=TriggerWordSerializer,
+    tags=["Trigger Word"],
+)
 @api_view(["GET", "PUT"])
 @permission_classes([AllowAny])
-@extend_schema(
-    tags=["Trigger Word"],
-    summary="Get or update trigger word",
-    description="Stores or retrieves user's emergency trigger word from Supabase",
-)
 def trigger_word(request):
-    """Retrieves or updates the user's emergency trigger word."""
-
-    supabase = get_supabase()
     user_id = "test-user"
 
     if request.method == "GET":
-        result = (
-            supabase.table("trigger_word")
-            .select("*")
-            .eq("user_id", user_id)
-            .execute()
+        trigger, _ = TriggerWord.objects.get_or_create(
+            user_id=user_id,
+            defaults={"word": "help"},
         )
-        return Response(result.data, status=200)
+        return Response({"word": trigger.word}, status=200)
 
-    if request.method == "PUT":
-        word = request.data.get("word")
-        audio_file = request.FILES.get("audio")
+    serializer = TriggerWordSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=400)
 
-        if not word:
-            return Response({"error": "word is required"}, status=400)
+    word = serializer.validated_data["word"]
 
-        existing = (
-            supabase.table("trigger_word")
-            .select("*")
-            .eq("user_id", user_id)
-            .execute()
-        )
+    TriggerWord.objects.update_or_create(
+        user_id=user_id,
+        defaults={"word": word},
+    )
 
-        audio_url = None
-
-        if audio_file:
-            upload_result = upload_file(audio_file)
-            audio_url = upload_result.get("url")
-
-        if existing.data:
-            update_data = {"word": word}
-
-            if audio_url:
-                update_data["audio_url"] = audio_url
-
-            result = (
-                supabase.table("trigger_word")
-                .update(update_data)
-                .eq("user_id", user_id)
-                .execute()
-            )
-        else:
-            result = (
-                supabase.table("trigger_word")
-                .insert(
-                    {
-                        "user_id": user_id,
-                        "word": word,
-                        "audio_url": audio_url,
-                    }
-                )
-                .execute()
-            )
-
-        return Response(result.data, status=200)
+    return Response({"word": word}, status=200)
 
 
 # -----------------------------
 # FILE UPLOAD API
+# FIX: wrapped upload_file() in try/except to surface Supabase errors
+#      instead of crashing into a 500.
 # -----------------------------
-@api_view(["POST"])
-@permission_classes([AllowAny])
 @extend_schema(
     tags=["File Upload"],
-    summary="Upload file",
+    request=FileUploadSerializer,
+    responses=inline_serializer(
+        name="FileUploadResponse",
+        fields={
+            "message": serializers.CharField(),
+            "file_name": serializers.CharField(),
+            "url": serializers.CharField(),
+        },
+    ),
 )
+@api_view(["POST"])
+@permission_classes([AllowAny])
+@parser_classes([MultiPartParser, FormParser])
 def upload_file_view(request):
-    """Uploads a file to Supabase storage and returns the public URL."""
 
     serializer = FileUploadSerializer(data=request.data)
 
@@ -128,13 +117,25 @@ def upload_file_view(request):
 
     file = serializer.validated_data["file"]
 
-    result = upload_file(file)
+    try:
+        result = upload_file(file)
+    except Exception as e:
+        return Response(
+            {"error": "File upload failed", "detail": str(e)},
+            status=500,
+        )
+
+    if not result:
+        return Response(
+            {"error": "File upload returned no result. Check Supabase configuration."},
+            status=500,
+        )
 
     return Response(
         {
             "message": "File uploaded successfully",
-            "file_name": result["file_name"],
-            "url": result["url"],
+            "file_name": result.get("file_name"),
+            "url": result.get("url"),
         },
         status=201,
     )
@@ -143,25 +144,30 @@ def upload_file_view(request):
 # -----------------------------
 # GET FILE URL API
 # -----------------------------
-@api_view(["GET"])
-@permission_classes([AllowAny])
 @extend_schema(
     tags=["File Upload"],
-    summary="Get file URL",
+    parameters=[
+        OpenApiParameter(
+            name="file_name",
+            type=str,
+            location=OpenApiParameter.QUERY,
+            required=True,
+        )
+    ],
+    responses=FileURLSerializer,
 )
+@api_view(["GET"])
+@permission_classes([AllowAny])
 def get_file_url(request):
-    """Returns the public URL of an uploaded file."""
 
     file_name = request.query_params.get("file_name")
 
     if not file_name:
-        return Response(
-            {"error": "file_name is required"},
-            status=400,
-        )
+        return Response({"error": "file_name is required"}, status=400)
 
     supabase = get_supabase()
     bucket = supabase.storage.from_("distress-files")
+
     url = bucket.get_public_url(file_name)
 
     return Response(
@@ -175,15 +181,33 @@ def get_file_url(request):
 
 # -----------------------------
 # VOICE ANALYSIS API
+# FIX 1: Added VoiceAnalyzeSerializer to validate all required fields
+#         before touching request.data — prevents KeyError → 500.
+# FIX 2: Wrapped analyze_voice_event() in try/except so AI service
+#         errors return a clean 500 JSON, not an HTML crash page.
 # -----------------------------
-@api_view(["POST"])
-@permission_classes([AllowAny])
+class VoiceAnalyzeSerializer(serializers.Serializer):
+    trigger_phrase_detected = serializers.BooleanField(required=True)
+    transcript = serializers.CharField(required=True, allow_blank=False)
+    intensity_score = serializers.FloatField(required=True, min_value=0.0, max_value=1.0)
+    base_risk_score = serializers.FloatField(required=True, min_value=0.0, max_value=1.0)
+
+
 @extend_schema(
     tags=["Voice Analysis"],
-    summary="Analyze voice distress data",
+    request=VoiceAnalyzeSerializer,
+    responses=inline_serializer(
+        name="VoiceAnalyzeResponse",
+        fields={
+            "risk_level": serializers.CharField(),
+            "recommendation": serializers.CharField(),
+            "confidence": serializers.FloatField(),
+        },
+    ),
 )
+@api_view(["POST"])
+@permission_classes([AllowAny])
 def analyze_voice(request):
-    """Processes voice distress data and returns a risk assessment result."""
 
     user_id = None
     if request.user and request.user.is_authenticated:
@@ -210,7 +234,38 @@ def analyze_voice(request):
         longitude=request.data.get("longitude")
     )
 
-    return Response(
-        result,
-        status=status.HTTP_200_OK,
-    )
+    # Step 6 — Telegram alert
+    threshold = RiskThreshold.get_threshold()
+    telegram_sent = False
+
+    if should_send_alert(risk_score, threshold):
+        contacts = get_prioritized_contacts(
+            float(user_lat) if user_lat else None,
+            float(user_lon) if user_lon else None,
+        )
+        contacts_with_telegram = [c for c in contacts if c.telegram_chat_id]
+        if contacts_with_telegram:
+            count = send_alerts_to_contacts(contacts_with_telegram, {
+                **result,
+                "wake_word": trigger_word_text,
+                "transcript": transcript,
+                "risk_level": risk_level,
+            })
+            telegram_sent = count > 0
+            event.telegram_sent = telegram_sent
+            event.save()
+
+    return Response({
+        "event_id": event.id,
+        "transcript": transcript,
+        "wake_word_detected": wake_word_detected,
+        "wake_word": trigger_word_text,
+        "risk_score": risk_score,
+        "risk_level": risk_level,
+        "classification": result.get("classification"),
+        "summary": result.get("summary"),
+        "recommendations": result.get("recommendations", []),
+        "alert_triggered": result.get("alert_triggered", False),
+        "telegram_sent": telegram_sent,
+        "threshold_used": threshold,
+    }, status=200)

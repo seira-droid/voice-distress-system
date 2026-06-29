@@ -1,2 +1,4 @@
-from config import ANTHROPIC_API_KEY
-print(ANTHROPIC_API_KEY is not None)
+import os
+
+def test_anthropic_api_key_present():
+    assert os.getenv("ANTHROPIC_API_KEY") is not None

@@ -29,6 +29,17 @@ class VoiceEvent(models.Model):
         return self.distress_keyword
 
 
+class TriggerWord(models.Model):
+    """Stores the active trigger word for a user."""
+
+    user_id = models.CharField(max_length=100, unique=True, default="test-user")
+    word = models.CharField(max_length=100)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.word
+
+
 class RiskAssessment(models.Model):
     """Stores AI-generated risk assessment results for a voice event."""
 
