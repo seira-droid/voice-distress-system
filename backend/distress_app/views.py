@@ -185,11 +185,29 @@ def get_file_url(request):
 def analyze_voice(request):
     """Processes voice distress data and returns a risk assessment result."""
 
+    user_id = None
+    if request.user and request.user.is_authenticated:
+        user_id = str(request.user.id)
+    else:
+        user_id = request.data.get("user_id")
+
+    # Retrieve supabase client if configured
+    supabase = None
+    try:
+        supabase = get_supabase()
+    except Exception:
+        pass
+
     result = analyze_voice_event(
         trigger_phrase_detected=request.data.get("trigger_phrase_detected"),
         transcript=request.data.get("transcript"),
         intensity_score=request.data.get("intensity_score"),
         base_risk_score=request.data.get("base_risk_score"),
+        supabase=supabase,
+        user_id=user_id,
+        audio_file=request.data.get("audio_file") or request.data.get("audio_url"),
+        latitude=request.data.get("latitude"),
+        longitude=request.data.get("longitude")
     )
 
     return Response(

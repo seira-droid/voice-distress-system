@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from distress_app.views import (
+from ..views import (
     EmergencyContactViewSet,
     trigger_word,
     upload_file_view,

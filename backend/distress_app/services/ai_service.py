@@ -1,6 +1,26 @@
 import uuid
+import hashlib
+import logging
+import datetime
 from pathlib import Path
+from django.conf import settings
 from utils.ai_client import AIClient
+
+logger = logging.getLogger(__name__)
+
+# ----------------------------
+# SAFE UUID CONVERTER
+# ----------------------------
+def safe_uuid(val):
+    if not val:
+        return None
+    try:
+        return uuid.UUID(str(val))
+    except ValueError:
+        # Generates a deterministic UUID based on string content to prevent db crashes
+        hash_val = hashlib.md5(str(val).encode('utf-8')).hexdigest()
+        return uuid.UUID(hash_val)
+
 
 # ----------------------------
 # LOAD SYSTEM PROMPT
@@ -22,7 +42,6 @@ def build_ai_request(
     intensity_score,
     base_risk_score
 ):
-
     system_prompt = load_system_prompt()
 
     return {
@@ -44,8 +63,7 @@ def build_ai_request(
 # FALLBACK SYSTEM
 # ----------------------------
 def fallback_classifier(transcript, intensity_score, base_risk_score):
-
-    text = transcript.lower()
+    text = transcript.lower() if transcript else ""
 
     keywords = [
         "help", "following", "weapon", "kill",
@@ -78,7 +96,6 @@ def fallback_classifier(transcript, intensity_score, base_risk_score):
 # PARSER / VALIDATOR
 # ----------------------------
 def parse_ai_response(ai_response):
-
     required_fields = {
         "classification": str,
         "confidence_score": (int, float),
@@ -117,7 +134,6 @@ def parse_ai_response(ai_response):
 # ALERT DECISION ENGINE
 # ----------------------------
 def should_trigger_alert(result):
-
     if result["risk_score"] >= 90:
         return True
 
@@ -131,7 +147,6 @@ def should_trigger_alert(result):
 # SUPABASE STORAGE
 # ----------------------------
 def store_voice_event(supabase, input_data, output_data):
-
     record = {
         "user_id": input_data.get("user_id", "anonymous"),
         "trigger_phrase_detected": input_data.get("trigger_phrase_detected"),
@@ -148,15 +163,93 @@ def store_voice_event(supabase, input_data, output_data):
         "send_alert": output_data["send_alert"]
     }
 
-    print("\n[SUPABASE INSERT PAYLOAD]")
-    print(record)
-
+    logger.info(f"\n[SUPABASE INSERT PAYLOAD]: {record}")
     response = supabase.table("voice_analysis_logs").insert(record).execute()
-
-    print("\n[SUPABASE RESPONSE]")
-    print(response)
-
+    logger.info(f"\n[SUPABASE RESPONSE]: {response}")
     return response
+
+
+# ----------------------------
+# TELEGRAM NOTIFICATION DISPATCHER
+# ----------------------------
+def send_telegram_alerts(
+    user_id,
+    risk_score,
+    confidence_score,
+    classification,
+    summary,
+    latitude,
+    longitude,
+    voice_event
+):
+    from ..models import EmergencyContact, AlertLog
+    from utils.telegram_client import TelegramClient
+
+    db_user_id = safe_uuid(user_id)
+    if db_user_id:
+        contacts = EmergencyContact.objects.filter(user_id=db_user_id)
+    else:
+        contacts = EmergencyContact.objects.all()
+
+    # Determine user display name
+    user_name = "Safety System User"
+    if db_user_id:
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        try:
+            user = User.objects.get(id=db_user_id)
+            user_name = user.get_full_name() or user.username
+        except (User.DoesNotExist, ValueError):
+            if user_id:
+                user_name = f"User ({user_id})"
+    elif user_id:
+        user_name = str(user_id)
+
+    # Format location details
+    if latitude is not None and longitude is not None:
+        location_text = f"Lat: {latitude}, Lng: {longitude}"
+        maps_link = f"https://www.google.com/maps?q={latitude},{longitude}"
+    else:
+        location_text = "Unknown"
+        maps_link = "Not provided"
+
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")
+
+    message = (
+        f"🚨 *DISTRESS ALERT DETECTED* 🚨\n\n"
+        f"👤 *User:* {user_name}\n"
+        f"📊 *Risk Score:* {risk_score}%\n"
+        f"🎯 *Confidence Score:* {confidence_score}%\n"
+        f"🏷 *Status:* {classification}\n"
+        f"📝 *AI Summary:* {summary}\n"
+        f"🕒 *Time:* {timestamp}\n"
+        f"📍 *Location:* {location_text}\n"
+        f"🗺 *Maps Link:* {maps_link}"
+    )
+
+    client = TelegramClient()
+    
+    # If no contacts are registered, send to fallback global channel if available
+    if not contacts.exists():
+        fallback_chat_id = getattr(settings, "TELEGRAM_CHAT_ID", None)
+        if fallback_chat_id or getattr(settings, "TELEGRAM_BOT_TOKEN", None):
+            client.send_message(chat_id=None, text=message)
+            AlertLog.objects.create(
+                user_id=db_user_id,
+                voice_event=voice_event,
+                contact=None,
+                message_sent=message
+            )
+    else:
+        for contact in contacts:
+            target_chat = contact.telegram_chat_id
+            client.send_message(chat_id=target_chat, text=message)
+            AlertLog.objects.create(
+                user_id=db_user_id,
+                voice_event=voice_event,
+                contact=contact,
+                message_sent=message
+            )
 
 
 # ----------------------------
@@ -168,9 +261,11 @@ def analyze_voice_event(
     intensity_score,
     base_risk_score,
     supabase=None,
-    user_id=None
+    user_id=None,
+    audio_file=None,
+    latitude=None,
+    longitude=None
 ):
-
     payload = build_ai_request(
         trigger_phrase_detected,
         transcript,
@@ -190,23 +285,60 @@ def analyze_voice_event(
         client = AIClient()
         ai_output = client.analyze_event(payload)
         parsed_response = parse_ai_response(ai_output)
-
     except Exception as e:
-        print("\n❌ AI PIPELINE ERROR:")
-        print(str(e))
-        raise e
+        logger.error(f"\n❌ AI PIPELINE ERROR: {e}")
+        # Run local fallback classifier if the LLM provider fails (extremely important for high reliability)
+        parsed_response = fallback_classifier(transcript, intensity_score, base_risk_score)
+        parsed_response["confidence_score"] = 50  # Default fallback confidence
 
     alert_triggered = should_trigger_alert(parsed_response)
 
+    # Save to local database (VoiceEvent, RiskAssessment)
+    db_user_id = safe_uuid(user_id)
+    voice_event = None
+    try:
+        from ..models import VoiceEvent, RiskAssessment
+        voice_event = VoiceEvent.objects.create(
+            user_id=db_user_id,
+            audio_file=audio_file or "anonymous_recording.wav",
+            distress_keyword=transcript[:100] if transcript else "None"
+        )
+        
+        RiskAssessment.objects.create(
+            user_id=db_user_id,
+            voice_event=voice_event,
+            risk_score=parsed_response["risk_score"],
+            risk_level=parsed_response["classification"],
+            ai_explanation=parsed_response["summary"]
+        )
+    except Exception as db_exc:
+        logger.error(f"\n❌ DJANGO DB WRITE ERROR: {db_exc}")
+
+    # Dispatch alerts if triggered
+    if alert_triggered and voice_event:
+        try:
+            send_telegram_alerts(
+                user_id=user_id,
+                risk_score=parsed_response["risk_score"],
+                confidence_score=parsed_response["confidence_score"],
+                classification=parsed_response["classification"],
+                summary=parsed_response["summary"],
+                latitude=latitude,
+                longitude=longitude,
+                voice_event=voice_event
+            )
+        except Exception as alert_exc:
+            logger.error(f"\n❌ TELEGRAM ALERT DISPATCH ERROR: {alert_exc}")
+
+    # Log to Supabase if client is passed
     if supabase:
         try:
             store_voice_event(supabase, input_data, parsed_response)
         except Exception as e:
-            print("\n❌ SUPABASE ERROR:")
-            print(str(e))
+            logger.error(f"\n❌ SUPABASE LOGGING ERROR: {e}")
 
     return {
-        "event_id": str(uuid.uuid4()),
+        "event_id": str(voice_event.id) if voice_event else str(uuid.uuid4()),
         "prompt_loaded": True,
         "payload_ready": True,
         "payload_preview": payload["user_input"],
