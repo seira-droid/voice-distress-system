@@ -2,4 +2,4 @@ from django.apps import AppConfig
 
 
 class DistressAppConfig(AppConfig):
-    name = 'distress_app'
+    name = 'backend.distress_app'

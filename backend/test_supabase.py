@@ -1,4 +1,4 @@
-from distress_app.supabase_client import get_supabase
+from backend.distress_app.supabase_client import get_supabase
 
 
 def test_supabase_function_exists():

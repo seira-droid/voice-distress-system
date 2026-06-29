@@ -27,7 +27,7 @@ INSTALLED_APPS = [
 
     'django_filters',
 
-    'distress_app',
+    'backend.distress_app',
     'rest_framework',
     'drf_spectacular',
 ]
@@ -64,10 +64,7 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 DATABASES = {
     "default": dj_database_url.parse(
-        env(
-            "DATABASE_URL",
-            default="sqlite:///db.sqlite3"
-        )
+        env("DATABASE_URL", default="sqlite:///db.sqlite3")
     )
 }
 
