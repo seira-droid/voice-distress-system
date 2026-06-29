@@ -1,7 +1,11 @@
+import requests
+from datetime import datetime
+from django.conf import settings
+
+
 def send_telegram_alert(contact, event_data):
     token = settings.TELEGRAM_BOT_TOKEN
     chat_id = contact.telegram_chat_id
-
     if not token or not chat_id:
         return False
 
@@ -33,7 +37,6 @@ def send_telegram_alert(contact, event_data):
     )
 
     url = f"https://api.telegram.org/bot{token}/sendMessage"
-
     try:
         response = requests.post(url, json={
             "chat_id": chat_id,
@@ -44,3 +47,11 @@ def send_telegram_alert(contact, event_data):
     except Exception as e:
         print(f"Telegram error: {e}")
         return False
+
+
+def send_alerts_to_contacts(contacts, event_data):
+    count = 0
+    for contact in contacts:
+        if send_telegram_alert(contact, event_data):
+            count += 1
+    return count

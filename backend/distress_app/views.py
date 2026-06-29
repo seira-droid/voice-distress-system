@@ -10,7 +10,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.throttling import AnonRateThrottle
 import os
 
-from .models import EmergencyContact, TriggerWord
+from .models import EmergencyContact, TriggerWord, VoiceEvent, RiskThreshold
 from .serializers import (
     EmergencyContactSerializer,
     FileUploadSerializer,
@@ -269,3 +269,42 @@ def analyze_voice(request):
         "telegram_sent": telegram_sent,
         "threshold_used": threshold,
     }, status=200)
+# -----------------------------
+# EVENTS LIST API
+# -----------------------------
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def events_list(request):
+    events = VoiceEvent.objects.all().order_by("-created_at")[:20]
+    data = []
+    for e in events:
+        data.append({
+            "id": e.id,
+            "transcript": e.transcript,
+            "classification": e.classification,
+            "risk_score": e.risk_score,
+            "telegram_sent": e.telegram_sent,
+            "alert_triggered": e.alert_triggered,
+            "created_at": e.created_at.isoformat() if e.created_at else "",
+        })
+    return Response(data, status=200)
+
+
+# -----------------------------
+# RISK THRESHOLD API
+# -----------------------------
+@api_view(["GET", "PUT"])
+@permission_classes([AllowAny])
+def risk_threshold(request):
+    if request.method == "GET":
+        threshold = RiskThreshold.get_threshold()
+        return Response({"threshold": threshold}, status=200)
+
+    value = request.data.get("threshold")
+    if value is None:
+        return Response({"error": "threshold is required"}, status=400)
+
+    obj, _ = RiskThreshold.objects.get_or_create(user_id="test-user")
+    obj.threshold = int(value)
+    obj.save()
+    return Response({"threshold": obj.threshold}, status=200)

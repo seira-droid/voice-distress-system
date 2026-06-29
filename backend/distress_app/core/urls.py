@@ -9,10 +9,11 @@ from ..views import (
     record_and_analyze,
     risk_threshold,
     event_log,
+    diagnose_status,
 )
 
 router = DefaultRouter()
-router.register(r"emergency-contacts", EmergencyContactViewSet)
+router.register(r"emergency-contacts", EmergencyContactViewSet, basename="emergency-contact")
 
 urlpatterns = [
     path("", include(router.urls)),
@@ -23,4 +24,5 @@ urlpatterns = [
     path("voice/record-analyze/", record_and_analyze, name="record-analyze"),
     path("risk-threshold/", risk_threshold, name="risk-threshold"),
     path("events/", event_log, name="event-log"),
+    path("diagnose/", diagnose_status, name="diagnose-status"),
 ]

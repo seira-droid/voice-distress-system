@@ -1,0 +1,207 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Voice Distress System</title>
+  <link rel="stylesheet" href="{% static 'styles.css' %}"/>
+</head>
+<body>
+<main class="shell">
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="pulse-dot"></div>
+      <div>
+        <p class="eyebrow">Voice Distress System</p>
+        <h1>Safety Console</h1>
+      </div>
+    </div>
+    <label class="api-control">
+      <span>API base URL</span>
+      <input id="apiBase" type="url"
+      value="http://localhost:8000/api/v1" 
+       </label>
+  </header>
+
+  <section class="status-strip" aria-live="polite">
+    <div>
+      <span class="status-dot" id="statusDot"></span>
+      <strong id="statusTitle">Ready</strong>
+    </div>
+    <p id="statusText">System connected and monitoring.</p>
+  </section>
+
+  <!-- ALERT BANNER -->
+  <div id="alertBanner" class="alert-banner">
+    🚨 EMERGENCY ALERT TRIGGERED — Contacts have been notified
+  </div>
+
+  <section class="grid">
+
+    <!-- WAKE WORD LISTENER -->
+    <article class="panel wide primary-panel">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">Wake Word Detection</p>
+          <h2>Continuous Listening</h2>
+        </div>
+        <span id="listenBadge" class="badge badge-green">🟢 Standby</span>
+      </div>
+
+      <div class="listener-ui">
+        <button id="listenBtn" class="listen-btn">🎙️ Start Listening</button>
+        <div class="status-flow">
+          <div class="flow-step" id="step-listening">🟢 Listening</div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step" id="step-wakeword">🎤 Wake Word Detected</div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step" id="step-recording">🔴 Recording</div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step" id="step-analyzing">🧠 Analyzing</div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step" id="step-result">📊 Result Ready</div>
+        </div>
+        <p id="listenStatus" class="listen-status">Press button to begin</p>
+        <span id="recordTimer" class="record-timer"></span>
+      </div>
+
+      <!-- Result card -->
+      <div id="recordResult" style="display:none;margin-top:20px">
+        <div id="riskCard" class="risk-card"></div>
+      </div>
+    </article>
+
+    <!-- TRIGGER WORD -->
+    <article class="panel primary-panel">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">Trigger Word</p>
+          <h2>Wake phrase setup</h2>
+        </div>
+        <button id="refreshTrigger" class="icon-button" type="button">Refresh</button>
+      </div>
+      <form id="triggerForm" class="form-stack">
+        <label>
+          <span>Current trigger word</span>
+          <input id="triggerWord" name="word" type="text"
+            maxlength="100" placeholder="help" required/>
+        </label>
+        <button type="submit">Save Trigger Word</button>
+      </form>
+    </article>
+
+    <!-- RISK THRESHOLD -->
+    <article class="panel">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">Alert Settings</p>
+          <h2>Risk threshold</h2>
+        </div>
+      </div>
+      <form id="thresholdForm" class="form-stack">
+        <label>
+          <span>Alert when risk score exceeds</span>
+          <input id="thresholdInput" name="threshold" type="number"
+            min="0" max="100" value="80" required/>
+        </label>
+        <div class="threshold-labels">
+          <span class="badge badge-green">0–30 Low</span>
+          <span class="badge badge-amber">31–60 Medium</span>
+          <span class="badge badge-red">61–80 High</span>
+          <span style="color:#ef4444;font-size:0.8rem;font-weight:700">81–100 Critical</span>
+        </div>
+        <button type="submit">Save Threshold</button>
+      </form>
+    </article>
+
+    <!-- EMERGENCY CONTACTS -->
+    <article class="panel">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">Emergency Contacts</p>
+          <h2>Add contact</h2>
+        </div>
+      </div>
+      <form id="contactForm" class="form-stack">
+        <label><span>Name</span>
+          <input name="name" type="text" placeholder="Alice" required/></label>
+        <label><span>Phone number</span>
+          <input name="phone_number" type="tel" placeholder="9876543210" required/></label>
+        <label><span>Relationship</span>
+          <input name="relationship" type="text" placeholder="Friend" required/></label>
+        <label><span>Telegram Chat ID</span>
+          <input name="telegram_chat_id" type="text" placeholder="123456789"/></label>
+        <button type="submit">Add Contact</button>
+      </form>
+    </article>
+
+    <!-- MANUAL VOICE ANALYSIS -->
+    <article class="panel wide">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">Manual Analysis</p>
+          <h2>Voice risk check</h2>
+        </div>
+      </div>
+      <form id="analysisForm" class="analysis-grid">
+        <label class="toggle-row">
+          <input name="trigger_phrase_detected" type="checkbox" checked/>
+          <span>Trigger phrase detected</span>
+        </label>
+        <label>
+          <span>Transcript</span>
+          <textarea name="transcript" rows="3"
+            placeholder="Help me, someone is following me"></textarea>
+        </label>
+        <label><span>Intensity score (0–1)</span>
+          <input name="intensity_score" type="number"
+            min="0" max="1" step="0.01" value="0.75"/></label>
+        <label><span>Base risk score (0–1)</span>
+          <input name="base_risk_score" type="number"
+            min="0" max="1" step="0.01" value="0.65"/></label>
+        <button type="submit">Analyze Voice Event</button>
+      </form>
+    </article>
+
+    <!-- CONTACTS LIST -->
+    <article class="panel">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">Contacts</p>
+          <h2>Saved list</h2>
+        </div>
+        <button id="refreshContacts" class="icon-button" type="button">Refresh</button>
+      </div>
+      <div id="contactsList" class="list empty">No contacts loaded.</div>
+    </article>
+
+    <!-- EVENT LOG -->
+    <article class="panel">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">Event Log</p>
+          <h2>Recent events</h2>
+        </div>
+        <button id="refreshEvents" class="icon-button" type="button">Refresh</button>
+      </div>
+      <div id="eventsList" class="list empty">No events yet.</div>
+    </article>
+
+    <!-- API OUTPUT -->
+    <article class="panel wide">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">Response</p>
+          <h2>Latest API output</h2>
+        </div>
+      </div>
+      <pre id="output">{}</pre>
+    </article>
+
+  </section>
+</main>
+<script src="{% static 'app.js' %}"></script>
+</body>
+</html>
