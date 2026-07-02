@@ -1,4 +1,6 @@
+import wakeWordService from "./services/wakeWordService";
 import { useState, useRef, useEffect } from 'react';
+import microphoneService from './services/microphoneService';
 
 const API_BASE = 'https://voice-distress-system.onrender.com';
 
@@ -6,6 +8,7 @@ function App() {
   const [activeTab, setActiveTab] = useState('record');
 
   // Recording states
+  const [wakeWordStatus, setWakeWordStatus] = useState("🟢 Waiting for wake word...");
   const [isRecording, setIsRecording] = useState(false);
   const [audioUrl, setAudioUrl] = useState(null);
   const [transcription, setTranscription] = useState('');
@@ -13,6 +16,8 @@ function App() {
   const [alertSent, setAlertSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [microphoneStatus, setMicrophoneStatus] = useState('');
+  const [voiceFeatures, setVoiceFeatures] = useState(null);
 
   // Other data
   const [contacts, setContacts] = useState([]);
@@ -20,12 +25,170 @@ function App() {
 
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
+  const wakeWordCooldownRef = useRef(0);
+  const speechUtteranceRef = useRef(null);
+
+  // Restart listening cycle after TTS completes
+  const restartListeningCycle = () => {
+    // Reset recording state safely
+    if (isRecording) {
+      setIsRecording(false);
+    }
+
+    // Ensure MediaRecorder is not active
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      try {
+        mediaRecorderRef.current.stop();
+        mediaRecorderRef.current.stream?.getTracks().forEach(track => track.stop());
+      } catch (err) {
+        console.warn('Error stopping MediaRecorder during restart:', err);
+      }
+    }
+
+    // Clear audio chunks for next recording
+    audioChunksRef.current = [];
+
+    // Restart wake word service
+    try {
+      if (wakeWordService && !wakeWordService.isRunning) {
+        wakeWordService.start();
+        setWakeWordStatus("🟢 Waiting for wake word...");
+      }
+    } catch (err) {
+      console.error('Failed to restart wake word service:', err);
+    }
+
+    // Ensure microphone permissions are still active
+    if (microphoneService && !microphoneService.isListening()) {
+      microphoneService.startListening().then(() => {
+        setMicrophoneStatus('🟢 Waiting for wake word...');
+      }).catch((err) => {
+        console.error('Microphone re-initialization failed:', err);
+        setMicrophoneStatus('🔴 Microphone unavailable.');
+      });
+    }
+  };
+
+  // Text-to-Speech function for voice responses
+  const speakResponse = (text) => {
+    if (!window.speechSynthesis) {
+      console.warn('Speech synthesis not supported in this browser');
+      return;
+    }
+
+    // Cancel any ongoing speech to prevent overlapping
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 1;
+    utterance.pitch = 1;
+    utterance.volume = 1;
+
+    // When speech ends, automatically return to wake-word listening
+    utterance.onend = () => {
+      console.log('✅ TTS completed, returning to wake-word listening...');
+      restartListeningCycle();
+    };
+
+    // Handle speech errors
+    utterance.onerror = (event) => {
+      console.error('Speech synthesis error:', event.error);
+      // Still restart listening even if TTS fails
+      restartListeningCycle();
+    };
+
+    speechUtteranceRef.current = utterance;
+    window.speechSynthesis.speak(utterance);
+  };
 
   // Fetch initial data
   useEffect(() => {
     fetchContacts();
     fetchTriggerWord();
+
+    const initializeWakeWord = async () => {
+      try {
+        const currentTriggerWord = triggerWord || "hey guardian";
+        
+        wakeWordService.initialize(currentTriggerWord, () => {
+          // Cooldown check: prevent duplicate triggering within 5 seconds
+          const now = Date.now();
+          if (now - wakeWordCooldownRef.current < 5000) {
+            console.log('Wake word detected but in cooldown period');
+            return;
+          }
+          
+          console.log('✅ Wake word detected! Starting recording...');
+          wakeWordCooldownRef.current = now;
+          setWakeWordStatus("✅ Wake word detected!");
+          
+          // Automatically trigger recording
+          startRecording();
+        });
+
+        wakeWordService.start();
+        setWakeWordStatus("🟢 Waiting for wake word...");
+      } catch (err) {
+        console.error(err);
+        setWakeWordStatus("❌ Speech recognition unavailable");
+      }
+    };
+
+    const initializeMicrophone = async () => {
+      try {
+        await microphoneService.startListening();
+        setMicrophoneStatus('🟢 Waiting for wake word...');
+      } catch (err) {
+        console.error('Microphone initialization failed:', err);
+        setMicrophoneStatus('🔴 Microphone unavailable.');
+      }
+    };
+
+    initializeWakeWord();
+    initializeMicrophone();
+
+    return () => {
+      wakeWordService.stop();
+      microphoneService.stopListening();
+    };
   }, []);
+
+  // Re-initialize wake word when trigger word changes
+  useEffect(() => {
+    if (!triggerWord) {
+      return;
+    }
+
+    const updateWakeWord = async () => {
+      try {
+        wakeWordService.stop();
+        
+        wakeWordService.initialize(triggerWord, () => {
+          // Cooldown check: prevent duplicate triggering within 5 seconds
+          const now = Date.now();
+          if (now - wakeWordCooldownRef.current < 5000) {
+            console.log('Wake word detected but in cooldown period');
+            return;
+          }
+          
+          console.log('✅ Wake word detected! Starting recording...');
+          wakeWordCooldownRef.current = now;
+          setWakeWordStatus("✅ Wake word detected!");
+          
+          // Automatically trigger recording
+          startRecording();
+        });
+
+        wakeWordService.start();
+        setWakeWordStatus("🟢 Waiting for wake word...");
+      } catch (err) {
+        console.error('Failed to update wake word:', err);
+        setWakeWordStatus("❌ Speech recognition unavailable");
+      }
+    };
+
+    updateWakeWord();
+  }, [triggerWord]);
 
   const fetchContacts = async () => {
     try {
@@ -81,18 +244,16 @@ function App() {
     }
   };
 
-   const analyzeAudio = async (audioBlob) => {
+  const analyzeAudio = async (audioBlob) => {
     setLoading(true);
     setError('');
     
     const formData = new FormData();
-    formData.append('file', audioBlob, 'recording.webm');
-    formData.append('transcript', 'User spoke emergency phrase');   // Temporary
-    formData.append('intensity_score', '80');
-    formData.append('base_risk_score', '65');
+    formData.append('audio', audioBlob, 'recording.webm');
+    formData.append('trigger_phrase_detected', 'true');
 
     try {
-      const response = await fetch(`${API_BASE}/api/v1/voice/analyze/`, {
+      const response = await fetch(`${API_BASE}/api/v1/voice/record-analyze/`, {
         method: 'POST',
         body: formData,
       });
@@ -105,9 +266,24 @@ function App() {
       }
 
       const result = await response.json();
-      setTranscription(result.transcription || 'Processed');
-      setRiskScore(result.risk_score || 85);
-      setAlertSent(true);
+      
+      // Update UI with ONLY backend response values
+      setTranscription(result.transcription || 'No transcription available');
+      setRiskScore(result.risk_score || 0);
+      setAlertSent(result.alert_triggered || result.send_alert || false);
+      setVoiceFeatures(result.voice_features || null);
+
+      // Voice response based on risk assessment
+      const risk = result.risk_score || 0;
+      const isAlert = result.alert_triggered || result.send_alert || false;
+      
+      if (isAlert) {
+        speakResponse("I detected a high-risk situation. Emergency protocols may be activated.");
+      } else if (risk >= 40 && risk < 70) {
+        speakResponse("I hear distress in your voice. Are you okay?");
+      } else if (risk < 40) {
+        speakResponse("You are safe. I'm here if you need anything.");
+      }
 
     } catch (err) {
       console.error(err);
@@ -128,6 +304,7 @@ function App() {
     <div style={{ padding: '20px', maxWidth: '900px', margin: '0 auto', fontFamily: 'Arial, sans-serif' }}>
       <h1>🚨 Voice Distress System</h1>
       <p>AI-Powered Emergency Voice Alert</p>
+      <p style={{ margin: '8px 0 0' }}>{microphoneStatus}</p>
 
       <div style={{ margin: '20px 0', display: 'flex', gap: '10px', borderBottom: '1px solid #ccc' }}>
         <button onClick={() => setActiveTab('record')} style={activeTab === 'record' ? tabStyleActive : tabStyle}>🎤 Record Voice</button>

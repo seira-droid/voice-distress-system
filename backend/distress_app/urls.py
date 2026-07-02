@@ -6,7 +6,6 @@ from .views import (
     get_file_url,
     analyze_voice,
     EmergencyContactViewSet,
-    diagnose_status,
     record_and_analyze,
     events_list,
     risk_threshold,
@@ -24,5 +23,4 @@ urlpatterns = [
     path("voice/record-analyze/", record_and_analyze, name="record-analyze"),
     path("events/", events_list, name="events-list"),
     path("risk-threshold/", risk_threshold, name="risk-threshold"),
-    path("diagnose/", diagnose_status, name="diagnose-status"),
 ]

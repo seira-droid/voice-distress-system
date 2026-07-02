@@ -29,6 +29,8 @@ function Dashboard() {
   const [gpsLocation, setGpsLocation] = useState(null);
   const [triggerWord, setTriggerWord] = useState("help");
   const [audioUrl, setAudioUrl] = useState(null);
+  const [wakeWordListening, setWakeWordListening] = useState(false);
+  const [wakeWordStatus, setWakeWordStatus] = useState("Listening for wake word");
 
   // System status: safe, monitor, emergency
   const [status, setStatus] = useState("safe");
@@ -63,6 +65,9 @@ function Dashboard() {
 
   // Speech Recognition Ref
   const recognitionRef = useRef(null);
+  const wakeRecognitionRef = useRef(null);
+  const wakeListeningRef = useRef(false);
+  const wakeWordCooldownRef = useRef(0);
 
   // ----------------------------------------------------
   // INITIAL LOAD
@@ -72,7 +77,133 @@ function Dashboard() {
     fetchTriggerWord();
     requestGpsLocation();
     loadSampleHistory();
+
+    return () => {
+      stopWakeWordListening();
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+      }
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
   }, []);
+
+  useEffect(() => {
+    if (!triggerWord || useManualMode) return;
+    startWakeWordListening();
+  }, [triggerWord, useManualMode]);
+
+  const normalizeWakeWordText = (value) => {
+    return (value || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  };
+
+  const containsWakeWord = (text, wakeWord) => {
+    const normalizedTranscript = normalizeWakeWordText(text);
+    const normalizedWakeWord = normalizeWakeWordText(wakeWord);
+
+    if (!normalizedTranscript || !normalizedWakeWord) {
+      return false;
+    }
+
+    if (normalizedTranscript.includes(normalizedWakeWord)) {
+      return true;
+    }
+
+    const wakeTokens = normalizedWakeWord.split(" ");
+    const transcriptTokens = normalizedTranscript.split(" ");
+    const matches = wakeTokens.filter((token) => transcriptTokens.includes(token)).length;
+
+    return wakeTokens.length > 0 && matches / wakeTokens.length >= 0.75;
+  };
+
+  const stopWakeWordListening = () => {
+    wakeListeningRef.current = false;
+    if (wakeRecognitionRef.current) {
+      try {
+        wakeRecognitionRef.current.onresult = null;
+        wakeRecognitionRef.current.onerror = null;
+        wakeRecognitionRef.current.onend = null;
+        wakeRecognitionRef.current.stop();
+      } catch (err) {
+        console.warn("Unable to stop wake-word listener cleanly:", err);
+      }
+      wakeRecognitionRef.current = null;
+    }
+    setWakeWordListening(false);
+  };
+
+  const startWakeWordListening = () => {
+    if (typeof window === "undefined" || useManualMode) {
+      return;
+    }
+
+    stopWakeWordListening();
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setWakeWordStatus("Speech recognition is not supported in this browser.");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.lang = "en-US";
+
+    recognition.onresult = (event) => {
+      const latest = Array.from(event.results)
+        .map((result) => result[0]?.transcript || "")
+        .join(" ")
+        .trim();
+
+      if (!latest) return;
+
+      setTranscript(latest);
+      const now = Date.now();
+      if (!isRecording && !loading && containsWakeWord(latest, triggerWord) && now - wakeWordCooldownRef.current > 4000) {
+        wakeWordCooldownRef.current = now;
+        setWakeWordStatus(`Wake word detected: ${triggerWord}`);
+        stopWakeWordListening();
+        startRecording();
+      }
+    };
+
+    recognition.onerror = (event) => {
+      if (event.error === "not-allowed") {
+        setWakeWordStatus("Microphone permission is required for wake-word listening.");
+      }
+    };
+
+    recognition.onend = () => {
+      if (wakeListeningRef.current && !isRecording && !loading) {
+        try {
+          recognition.start();
+        } catch (err) {
+          console.warn("Wake-word listener could not restart:", err);
+        }
+      }
+    };
+
+    try {
+      wakeListeningRef.current = true;
+      wakeRecognitionRef.current = recognition;
+      setWakeWordListening(true);
+      setWakeWordStatus(`Listening for “${triggerWord}”`);
+      recognition.start();
+    } catch (err) {
+      console.warn("Unable to start wake-word listener:", err);
+      wakeListeningRef.current = false;
+      setWakeWordListening(false);
+    }
+  };
 
   // ----------------------------------------------------
   // GPS GEOLOCATION
@@ -115,8 +246,9 @@ function Dashboard() {
       const res = await fetch(`${API_BASE}/v1/trigger-word/`);
       if (res.ok) {
         const data = await res.json();
-        if (data && data.length > 0) {
-          setTriggerWord(data[0].word || "help");
+        const word = data?.word || (Array.isArray(data) ? data[0]?.word : null);
+        if (word) {
+          setTriggerWord(word);
         }
       }
     } catch (err) {
@@ -231,10 +363,14 @@ function Dashboard() {
   // RECORDING & WEB AUDIO API ANALYZER
   // ----------------------------------------------------
   const startRecording = async () => {
+    if (isRecording || loading) return;
+
+    stopWakeWordListening();
     audioChunksRef.current = [];
     setTranscript("");
     setIntensity(0);
     setRecordingDuration(0);
+    setWakeWordStatus("Recording your request...");
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -369,6 +505,7 @@ function Dashboard() {
   // ----------------------------------------------------
   const handleAudioUploadAndAnalysis = async (audioBlob) => {
     setLoading(true);
+    setWakeWordStatus("Processing your request...");
     try {
       const formData = new FormData();
       formData.append("file", audioBlob, "recording.wav");
@@ -391,7 +528,7 @@ function Dashboard() {
       const finalTranscript = useManualMode ? manualTranscript : transcript;
 
       const analysisPayload = {
-        trigger_phrase_detected: finalTranscript.toLowerCase().includes(triggerWord.toLowerCase()),
+        trigger_phrase_detected: containsWakeWord(finalTranscript, triggerWord),
         transcript: finalTranscript || "Silent recording / No verbal content detected.",
         intensity_score: intensity || Math.floor(Math.random() * 40) + 15,
         base_risk_score: 50,
@@ -432,6 +569,12 @@ function Dashboard() {
       alert("Error occurred during distress processing pipeline.");
     } finally {
       setLoading(false);
+      if (!useManualMode) {
+        setWakeWordStatus(`Ready. Say “${triggerWord}” to begin again.`);
+        window.setTimeout(() => {
+          startWakeWordListening();
+        }, 800);
+      }
     }
   };
 
@@ -526,7 +669,7 @@ function Dashboard() {
                 </div>
               ) : (
                 <span style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>
-                  Click microphone icon to record
+                  {wakeWordListening ? wakeWordStatus : "Click microphone icon to record"}
                 </span>
               )}
             </div>

@@ -193,78 +193,50 @@ def send_telegram_alerts(
     confidence_score,
     classification,
     summary,
+    transcript,
     latitude,
     longitude,
     voice_event
 ):
-    from ..models import EmergencyContact, AlertLog
+    from ..models import AlertLog
     from utils.telegram_client import TelegramClient
 
-    db_user_id = safe_uuid(user_id)
-    if db_user_id:
-        contacts = EmergencyContact.objects.filter(user_id=db_user_id)
-    else:
-        contacts = EmergencyContact.objects.all()
+    target_chat = getattr(settings, "TELEGRAM_CHAT_ID", None)
+    if not target_chat:
+        logger.error("TELEGRAM_CHAT_ID is not configured. Telegram alert skipped.")
+        return False
 
-    # Determine user display name
-    user_name = "Safety System User"
-    if db_user_id:
-        from django.contrib.auth import get_user_model
-        User = get_user_model()
-        try:
-            user = User.objects.get(id=db_user_id)
-            user_name = user.get_full_name() or user.username
-        except (User.DoesNotExist, ValueError):
-            if user_id:
-                user_name = f"User ({user_id})"
-    elif user_id:
-        user_name = str(user_id)
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")
+    location_text = "Not provided"
+    maps_link = "Not provided"
 
-    # Format location details
     if latitude is not None and longitude is not None:
         location_text = f"Lat: {latitude}, Lng: {longitude}"
         maps_link = f"https://www.google.com/maps?q={latitude},{longitude}"
-    else:
-        location_text = "Unknown"
-        maps_link = "Not provided"
-
-    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")
 
     message = (
-        f"🚨 *DISTRESS ALERT DETECTED* 🚨\n\n"
-        f"👤 *User:* {user_name}\n"
-        f"📊 *Risk Score:* {risk_score}%\n"
-        f"🎯 *Confidence Score:* {confidence_score}%\n"
-        f"🏷 *Status:* {classification}\n"
-        f"📝 *AI Summary:* {summary}\n"
-        f"🕒 *Time:* {timestamp}\n"
-        f"📍 *Location:* {location_text}\n"
-        f"🗺 *Maps Link:* {maps_link}"
+        f"🚨 *EMERGENCY DETECTED* 🚨\n\n"
+        f"*Risk Score:* {risk_score}%\n"
+        f"*Status:* {classification}\n"
+        f"*Transcript:* _{transcript or 'N/A'}_\n"
+        f"*Summary:* {summary or 'No summary available.'}\n"
+        f"*Time:* {timestamp}\n"
+        f"*Location:* {location_text}\n"
+        f"*Maps Link:* {maps_link}\n"
     )
 
     client = TelegramClient()
-    
-    # If no contacts are registered, send to fallback global channel if available
-    if not contacts.exists():
-        fallback_chat_id = getattr(settings, "TELEGRAM_CHAT_ID", None)
-        if fallback_chat_id or getattr(settings, "TELEGRAM_BOT_TOKEN", None):
-            client.send_message(chat_id=None, text=message)
-            AlertLog.objects.create(
-                user_id=db_user_id,
-                voice_event=voice_event,
-                contact=None,
-                message_sent=message
-            )
-    else:
-        for contact in contacts:
-            target_chat = contact.telegram_chat_id
-            client.send_message(chat_id=target_chat, text=message)
-            AlertLog.objects.create(
-                user_id=db_user_id,
-                voice_event=voice_event,
-                contact=contact,
-                message_sent=message
-            )
+    success = client.send_message(chat_id=target_chat, text=message)
+
+    if success and voice_event:
+        AlertLog.objects.create(
+            user_id=safe_uuid(user_id),
+            voice_event=voice_event,
+            contact=None,
+            message_sent=message
+        )
+
+    return success
 
 
 # ----------------------------
@@ -358,6 +330,7 @@ def analyze_voice_event(
         "payload_ready": True,
         "payload_preview": payload["user_input"],
         "received_input": payload["user_input"],
+        "transcription": transcript,
         **parsed_response,
         "alert_triggered": alert_triggered
     }

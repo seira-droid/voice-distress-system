@@ -1,4 +1,5 @@
 from pathlib import Path
+import sys
 import environ
 import dj_database_url
 
@@ -30,9 +31,8 @@ INSTALLED_APPS = [
 
     'corsheaders',
     'django_filters',
-    'corsheaders',
 
-    'backend.distress_app',
+    'distress_app',
     'rest_framework',
     'drf_spectacular',
 ]

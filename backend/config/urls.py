@@ -7,16 +7,9 @@ from drf_spectacular.views import (
 )
 
 urlpatterns = [
-
-
-    path('', home),
-
-    path("api/", include("backend.distress_app.core.urls")),
-
-
     path('', TemplateView.as_view(template_name='index.html'), name='home'),
+    path('api/', include('distress_app.core.urls')),
     path('admin/', admin.site.urls),
-
     path('api/v1/', include('distress_app.urls')),
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path(

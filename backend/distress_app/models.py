@@ -6,10 +6,7 @@ class EmergencyContact(models.Model):
     name = models.CharField(max_length=100)
     phone_number = models.CharField(max_length=20)
     relationship = models.CharField(max_length=50)
-
-    telegram_chat_id = models.CharField(max_length=50, null=True, blank=True)
     telegram_chat_id = models.CharField(max_length=100, null=True, blank=True)
-
 
     def __str__(self):
         return self.name
@@ -78,6 +75,16 @@ class VoiceEvent(models.Model):
 
     def __str__(self):
         return f"Event {self.id} - {self.classification}"
+
+
+class RiskAssessment(models.Model):
+    voice_event = models.ForeignKey(VoiceEvent, on_delete=models.CASCADE)
+    risk_score = models.FloatField()
+    risk_level = models.CharField(max_length=20)
+    ai_explanation = models.TextField()
+
+    def __str__(self):
+        return f"RiskAssessment {self.id} - {self.risk_level}"
 
 
 class AlertLog(models.Model):

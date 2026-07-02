@@ -8,8 +8,7 @@ from ..views import (
     analyze_voice,
     record_and_analyze,
     risk_threshold,
-    event_log,
-    diagnose_status,
+    events_list,
 )
 
 router = DefaultRouter()
@@ -23,6 +22,5 @@ urlpatterns = [
     path("voice/analyze/", analyze_voice, name="analyze-voice"),
     path("voice/record-analyze/", record_and_analyze, name="record-analyze"),
     path("risk-threshold/", risk_threshold, name="risk-threshold"),
-    path("events/", event_log, name="event-log"),
-    path("diagnose/", diagnose_status, name="diagnose-status"),
+    path("events/", events_list, name="events-list"),
 ]

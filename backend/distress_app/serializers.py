@@ -6,10 +6,11 @@ import os
 class EmergencyContactSerializer(serializers.ModelSerializer):
     name = serializers.CharField(max_length=100, allow_blank=False, trim_whitespace=True)
     relationship = serializers.CharField(max_length=50, allow_blank=False, trim_whitespace=True)
+    telegram_chat_id = serializers.CharField(max_length=100, allow_blank=True, required=False)
 
     class Meta:
         model = EmergencyContact
-        fields = ['id', 'name', 'phone_number', 'relationship']
+        fields = ['id', 'name', 'phone_number', 'relationship', 'telegram_chat_id']
 
     def validate_phone_number(self, value):
         digits = value.replace("+", "").replace(" ", "").replace("-", "")

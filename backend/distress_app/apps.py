@@ -2,4 +2,5 @@ from django.apps import AppConfig
 
 
 class DistressAppConfig(AppConfig):
-    name = 'backend.distress_app'
+    default_auto_field = 'django.db.models.BigAutoField'
+    name = 'distress_app'

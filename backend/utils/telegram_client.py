@@ -32,6 +32,7 @@ class TelegramClient:
             logger.info(f"[SIMULATED TELEGRAM ALERT] To: {target_chat}\nMessage:\n{text}")
             return True
 
+        # Build request details
         url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
         payload = {
             "chat_id": target_chat,
@@ -39,23 +40,39 @@ class TelegramClient:
             "parse_mode": parse_mode
         }
 
+        # Diagnostic: log masked token and target chat for debugging without leaking full token
+        try:
+            masked_token = self.bot_token[:4] + '...' + self.bot_token[-4:]
+        except Exception:
+            masked_token = 'REDACTED'
+
+        logger.info(f"Telegram request prepared. target_chat={target_chat} token={masked_token}")
+
         for attempt in range(1, retries + 1):
             try:
                 logger.info(f"Sending Telegram alert to {target_chat} (Attempt {attempt}/{retries})...")
                 response = httpx.post(url, json=payload, timeout=10.0)
                 
-                if response.status_code == 200:
+                # Detailed response logging for diagnostics
+                status = getattr(response, 'status_code', None)
+                text_resp = getattr(response, 'text', '')
+
+                if status == 200:
                     logger.info(f"Telegram alert successfully sent to {target_chat}")
                     return True
-                
-                # Check for rate limiting (HTTP 429)
-                if response.status_code == 429:
-                    retry_after = response.json().get("parameters", {}).get("retry_after", backoff)
-                    logger.warning(f"Telegram rate limited. Waiting for {retry_after}s...")
+
+                # Rate limit handling
+                if status == 429:
+                    try:
+                        retry_after = response.json().get("parameters", {}).get("retry_after", backoff)
+                    except Exception:
+                        retry_after = backoff
+                    logger.warning(f"Telegram rate limited. Waiting for {retry_after}s... status={status} text={text_resp}")
                     time.sleep(retry_after)
                     continue
 
-                logger.error(f"Telegram returned error {response.status_code}: {response.text}")
+                # Log full response for debugging (safe: token masked above)
+                logger.error(f"Telegram returned error status={status} text={text_resp}")
             except httpx.RequestError as exc:
                 logger.error(f"Network error sending Telegram message (attempt {attempt}/{retries}): {exc}")
             
