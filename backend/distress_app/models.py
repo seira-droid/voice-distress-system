@@ -97,3 +97,27 @@ class AlertLog(models.Model):
 
     def __str__(self):
         return f"Alert sent to {self.contact.name}"
+
+
+class InferenceLog(models.Model):
+    """Stores inference data for ML training and analysis."""
+    timestamp = models.DateTimeField(db_index=True)
+    transcription = models.TextField()
+    voice_features = models.JSONField(default=dict)
+    text_score = models.FloatField()
+    voice_score = models.FloatField()
+    text_confidence = models.FloatField()
+    voice_confidence = models.FloatField()
+    final_risk_score = models.FloatField()
+    alert_triggered = models.BooleanField(default=False)
+    label = models.CharField(max_length=20, db_index=True)
+    dataset_version = models.CharField(max_length=20, default="v1.0.0")
+
+    class Meta:
+        ordering = ["-timestamp"]
+        indexes = [
+            models.Index(fields=["-timestamp", "label"]),
+        ]
+
+    def __str__(self):
+        return f"Inference {self.id} - {self.label} (score: {self.final_risk_score})"

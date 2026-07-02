@@ -4,9 +4,16 @@ Extracts acoustic features from audio files for emotional detection.
 """
 
 import io
-import numpy as np
-import librosa
 from typing import Dict, Optional
+
+# Try to import librosa and numpy, but handle gracefully if not available
+try:
+    import numpy as np
+    import librosa
+    LIBROSA_AVAILABLE = True
+except ImportError:
+    LIBROSA_AVAILABLE = False
+    print("Warning: librosa not installed. Voice feature extraction will return zeros.")
 
 
 def extract_voice_features(audio_file, transcript: str = "") -> Dict[str, float]:
