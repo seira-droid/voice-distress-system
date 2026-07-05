@@ -424,10 +424,11 @@ def analyze_voice_event(
     except Exception as db_exc:
         logger.error(f"\n❌ DJANGO DB WRITE ERROR: {db_exc}")
 
-    # Dispatch alerts if triggered
+    # Dispatch alerts if triggered and track actual delivery status
+    telegram_delivered = False
     if alert_triggered and voice_event:
         try:
-            send_telegram_alerts(
+            telegram_delivered = send_telegram_alerts(
                 user_id=user_id,
                 risk_score=parsed_response["risk_score"],
                 confidence_score=parsed_response["confidence_score"],
@@ -440,6 +441,7 @@ def analyze_voice_event(
             )
         except Exception as alert_exc:
             logger.error(f"\n❌ TELEGRAM ALERT DISPATCH ERROR: {alert_exc}")
+            telegram_delivered = False
 
     # Log to Supabase if client is passed
     if supabase:
@@ -456,5 +458,6 @@ def analyze_voice_event(
         "received_input": payload["user_input"],
         "transcription": transcript,
         **parsed_response,
-        "alert_triggered": alert_triggered
+        "alert_triggered": alert_triggered,
+        "telegram_delivered": telegram_delivered
     }

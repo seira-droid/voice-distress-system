@@ -593,6 +593,11 @@ def record_and_analyze(request):
     result["voice_confidence"] = multimodal_result.get("voice_confidence", 0.0)
     result["debug"] = multimodal_result.get("debug", {})
     
+    # Preserve telegram_delivered status from analyze_voice_event
+    # This indicates whether Telegram actually delivered the message
+    telegram_delivered = result.get("telegram_delivered", False)
+    result["telegram_delivered"] = telegram_delivered
+    
     # Log inference data for future ML training
     try:
         log_inference_data({
