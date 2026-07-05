@@ -1,4 +1,5 @@
 import re
+from ..models import TriggerWord
 
 
 def _normalize_phrase(value):
@@ -33,3 +34,50 @@ def detect_wake_word(transcript, trigger_word):
     match_ratio = matches / len(trigger_words)
 
     return match_ratio >= 0.75
+
+
+def detect_wake_word_multi(transcript, trigger_words):
+    """
+    Check if the transcript contains any of the configured trigger words.
+    trigger_words: list of trigger word strings
+    Returns True if any trigger word is detected, False otherwise.
+    """
+    if not transcript or not trigger_words:
+        return False
+
+    normalized_transcript = _normalize_phrase(transcript)
+
+    for trigger in trigger_words:
+        normalized_trigger = _normalize_phrase(trigger)
+        if not normalized_trigger:
+            continue
+
+        if normalized_trigger in normalized_transcript:
+            return True
+
+        trigger_words_list = normalized_trigger.split()
+        transcript_words = normalized_transcript.split()
+
+        if not trigger_words_list:
+            continue
+
+        matches = sum(1 for word in trigger_words_list if word in transcript_words)
+        match_ratio = matches / len(trigger_words_list)
+
+        if match_ratio >= 0.75:
+            return True
+
+    return False
+
+
+def get_active_trigger_words(user_id="test-user"):
+    """
+    Get all active trigger words for a user.
+    Returns a list of trigger word strings.
+    """
+    triggers = TriggerWord.objects.filter(user_id=user_id, is_active=True)
+    words = [t.word for t in triggers]
+    print(f"Trigger words loaded: {words}")
+    if words:
+        print(f"Active trigger: {words[0]}")
+    return words

@@ -37,15 +37,26 @@ def extract_voice_features(audio_file, transcript: str = "") -> Dict[str, float]
         audio_content = audio_file.read()
         audio_file.seek(0)  # Reset file pointer for potential reuse
         
-        # Load audio with librosa
-        audio_data, sample_rate = librosa.load(
-            io.BytesIO(audio_content),
-            sr=None,  # Keep original sample rate
-            mono=True  # Convert to mono
-        )
-        
-        # Get audio duration
-        duration = librosa.get_duration(y=audio_data, sr=sample_rate)
+        # Load audio with librosa (supports WAV, MP3, OGG, FLAC, etc.)
+        # WebM may not be supported, so we catch format errors
+        try:
+            audio_data, sample_rate = librosa.load(
+                io.BytesIO(audio_content),
+                sr=None,  # Keep original sample rate
+                mono=True  # Convert to mono
+            )
+            
+            # Get audio duration
+            duration = librosa.get_duration(y=audio_data, sr=sample_rate)
+        except Exception as format_error:
+            # If audio format not recognized (e.g., WebM), return zero features
+            print(f"Audio format not recognized, returning zero features: {format_error}")
+            return {
+                "pitch": 0.0,
+                "energy": 0.0,
+                "speech_rate": 0.0,
+                "pause_ratio": 0.0
+            }
         
         if duration == 0:
             return {
@@ -92,13 +103,16 @@ def extract_voice_features(audio_file, transcript: str = "") -> Dict[str, float]
         }
 
 
-def _extract_pitch(audio_data: np.ndarray, sample_rate: int) -> float:
+def _extract_pitch(audio_data, sample_rate: int) -> float:
     """
     Extract mean pitch (fundamental frequency) using librosa.pyin.
     
     Returns:
         float: Mean pitch in Hz (0 if no pitch detected)
     """
+    if not LIBROSA_AVAILABLE:
+        return 0.0
+    
     try:
         # Use pyin for pitch tracking (more accurate than yin)
         f0, voiced_flag, voiced_probs = librosa.pyin(
@@ -123,13 +137,16 @@ def _extract_pitch(audio_data: np.ndarray, sample_rate: int) -> float:
         return 0.0
 
 
-def _extract_energy(audio_data: np.ndarray) -> float:
+def _extract_energy(audio_data) -> float:
     """
     Extract RMS energy and normalize to 0-1 range.
     
     Returns:
         float: Normalized energy (0-1)
     """
+    if not LIBROSA_AVAILABLE:
+        return 0.0
+    
     try:
         # Calculate RMS energy
         rms = librosa.feature.rms(y=audio_data)[0]
@@ -179,7 +196,7 @@ def _calculate_speech_rate(transcript: str, duration: float) -> float:
         return 0.0
 
 
-def _calculate_pause_ratio(audio_data: np.ndarray, sample_rate: int, 
+def _calculate_pause_ratio(audio_data, sample_rate: int, 
                            threshold_db: float = -40.0) -> float:
     """
     Calculate ratio of silence in audio.
@@ -192,6 +209,9 @@ def _calculate_pause_ratio(audio_data: np.ndarray, sample_rate: int,
     Returns:
         float: Pause ratio (0-1, where 1 = all silence)
     """
+    if not LIBROSA_AVAILABLE:
+        return 0.0
+    
     try:
         # Calculate RMS energy in dB
         rms = librosa.feature.rms(y=audio_data)[0]

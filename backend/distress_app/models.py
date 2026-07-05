@@ -4,37 +4,33 @@ from django.db import models
 class EmergencyContact(models.Model):
     user_id = models.UUIDField(null=True, blank=True, db_index=True)
     name = models.CharField(max_length=100)
-    phone_number = models.CharField(max_length=20)
+    phone_number = models.CharField(max_length=20, blank=True, default='')
+    email = models.EmailField(max_length=100, blank=True, default='')
     relationship = models.CharField(max_length=50)
     telegram_chat_id = models.CharField(max_length=100, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
 
     def __str__(self):
         return self.name
 
 
 
-class VoiceEvent(models.Model):
-    """Stores uploaded voice events and detected distress keywords."""
-
-    user_id = models.UUIDField(null=True, blank=True, db_index=True)
-
-    audio_file = models.CharField(max_length=255)
-    distress_keyword = models.CharField(max_length=100)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-
-    def __str__(self):
-        return self.distress_keyword
-
-
-
 class TriggerWord(models.Model):
-    user_id = models.CharField(max_length=100, unique=True, default="test-user")
+    user_id = models.CharField(max_length=100, db_index=True)
     word = models.CharField(max_length=100)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        unique_together = ['user_id', 'word']
+        ordering = ['-is_active', 'word']
+
     def __str__(self):
-        return self.word
+        return f"{self.word} ({'active' if self.is_active else 'inactive'})"
 
 
 class RiskThreshold(models.Model):
@@ -93,10 +89,16 @@ class AlertLog(models.Model):
     contact = models.ForeignKey(EmergencyContact, on_delete=models.CASCADE, null=True, blank=True)
     message_sent = models.TextField()
     sent_at = models.DateTimeField(auto_now_add=True)
-
+    delivered = models.BooleanField(default=False)
+    delivery_error = models.TextField(blank=True, default="")
+    incident = models.ForeignKey(
+        "Incident", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="alert_logs"
+    )
 
     def __str__(self):
-        return f"Alert sent to {self.contact.name}"
+        contact_name = self.contact.name if self.contact else "Unknown"
+        return f"Alert sent to {contact_name}"
 
 
 class InferenceLog(models.Model):
@@ -121,3 +123,56 @@ class InferenceLog(models.Model):
 
     def __str__(self):
         return f"Inference {self.id} - {self.label} (score: {self.final_risk_score})"
+
+
+class Incident(models.Model):
+    """
+    Stores a single emergency incident record for every alert-triggered emergency.
+    Links together the VoiceEvent, InferenceLog, and all AlertLog records.
+    """
+    class Status(models.TextChoices):
+        OPEN = "Open", "Open"
+        RESOLVED = "Resolved", "Resolved"
+        FALSE_ALARM = "False Alarm", "False Alarm"
+
+    # Core incident data
+    user_id = models.UUIDField(null=True, blank=True, db_index=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    transcript = models.TextField(blank=True, default="")
+    voice_features = models.JSONField(default=dict, blank=True)
+    risk_score = models.FloatField(default=0.0)
+    classification = models.CharField(max_length=100, blank=True, default="")
+    confidence_score = models.FloatField(default=0.0)
+
+    # Alert message data
+    alert_message = models.TextField(blank=True, default="")
+    alert_triggered = models.BooleanField(default=False)
+
+    # Telegram delivery status
+    telegram_delivery_status = models.BooleanField(default=False)
+    contacts_notified = models.IntegerField(default=0)
+    contacts_successful = models.IntegerField(default=0)
+    contacts_failed = models.IntegerField(default=0)
+
+    # Status
+    incident_status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.OPEN,
+    )
+
+    # Related records
+    voice_event = models.ForeignKey(
+        VoiceEvent, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="incidents"
+    )
+    inference_log = models.ForeignKey(
+        InferenceLog, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="incidents"
+    )
+
+    class Meta:
+        ordering = ["-timestamp"]
+
+    def __str__(self):
+        return f"Incident {self.id} - {self.classification} (score: {self.risk_score})"

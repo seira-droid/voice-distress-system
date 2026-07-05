@@ -1,3 +1,4 @@
+import logging
 from utils.supabase_client import upload_file, get_supabase
 from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiParameter
 from rest_framework import viewsets, serializers
@@ -10,6 +11,9 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.throttling import AnonRateThrottle
 import os
 import uuid
+from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 from .models import EmergencyContact, TriggerWord, VoiceEvent, RiskThreshold
 from .serializers import (
@@ -19,7 +23,7 @@ from .serializers import (
 )
 from .services.ai_service import analyze_voice_event
 from .services.speech_to_text_service import transcribe_audio_bytes
-from .services.wake_word_service import detect_wake_word
+from .services.wake_word_service import detect_wake_word, detect_wake_word_multi, get_active_trigger_words
 from .services.distress_analysis_service import analyze_distress
 from .services.voice_feature_extraction_service import extract_voice_features
 from .services.multimodal_inference_service import compute_multimodal_risk
@@ -38,7 +42,7 @@ class BurstThrottle(AnonRateThrottle):
 # -----------------------------
 @extend_schema(tags=["Emergency Contacts"])
 class EmergencyContactViewSet(viewsets.ModelViewSet):
-    queryset = EmergencyContact.objects.all().order_by("id")
+    queryset = EmergencyContact.objects.all().order_by("-created_at")
     serializer_class = EmergencyContactSerializer
     permission_classes = [AllowAny]
 
@@ -47,7 +51,7 @@ class EmergencyContactViewSet(viewsets.ModelViewSet):
 
 
 # -----------------------------
-# TRIGGER WORD API
+# TRIGGER WORD API - Multiple Words Support
 # -----------------------------
 class TriggerWordSerializer(serializers.Serializer):
     word = serializers.CharField(required=True)
@@ -58,12 +62,139 @@ class TriggerWordSerializer(serializers.Serializer):
         if not value:
             raise serializers.ValidationError("Trigger word cannot be empty.")
 
-        if len(value.split()) > 3:
-            raise serializers.ValidationError("Trigger word must be 1 to 3 words.")
+        if len(value) < 2:
+            raise serializers.ValidationError("Trigger word must be at least 2 characters.")
+
+        if len(value) > 40:
+            raise serializers.ValidationError("Trigger word must be at most 40 characters.")
 
         return value
 
 
+class TriggerWordItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TriggerWord
+        fields = ['id', 'word', 'is_active', 'created_at', 'updated_at']
+
+
+@extend_schema(
+    tags=["Trigger Word"],
+)
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def trigger_word_list(request):
+    user_id = "test-user"
+    triggers = TriggerWord.objects.filter(user_id=user_id)
+    return Response(TriggerWordItemSerializer(triggers, many=True).data, status=200)
+
+
+@extend_schema(
+    request=TriggerWordSerializer,
+    responses=TriggerWordItemSerializer,
+    tags=["Trigger Word"],
+)
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def trigger_word_add(request):
+    user_id = "test-user"
+    print("Incoming trigger word:", request.data)
+    
+    serializer = TriggerWordSerializer(data=request.data)
+    if not serializer.is_valid():
+        print("Validation errors:", serializer.errors)
+        return Response(serializer.errors, status=400)
+
+    word = serializer.validated_data["word"]
+    print("Validated:", serializer.validated_data)
+
+    # Check for duplicate (case-insensitive)
+    if TriggerWord.objects.filter(user_id=user_id, word__iexact=word).exists():
+        return Response({"error": "Trigger word already exists."}, status=400)
+
+    try:
+        trigger = TriggerWord.objects.create(user_id=user_id, word=word)
+        print("Saved:", trigger.id)
+        print(f"Trigger saved: {trigger.word}")
+        return Response(TriggerWordItemSerializer(trigger).data, status=201)
+    except Exception as e:
+        print(f"Error saving trigger word: {e}")
+        return Response({"error": str(e)}, status=500)
+
+
+@extend_schema(
+    request=TriggerWordSerializer,
+    responses=TriggerWordItemSerializer,
+    tags=["Trigger Word"],
+)
+@api_view(["PUT"])
+@permission_classes([AllowAny])
+def trigger_word_update(request, trigger_id):
+    user_id = "test-user"
+    try:
+        trigger = TriggerWord.objects.get(id=trigger_id, user_id=user_id)
+    except TriggerWord.DoesNotExist:
+        return Response({"error": "Trigger word not found."}, status=404)
+
+    serializer = TriggerWordSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=400)
+
+    word = serializer.validated_data["word"]
+
+    # Check for duplicate (case-insensitive) excluding current
+    if TriggerWord.objects.filter(user_id=user_id, word__iexact=word).exclude(id=trigger_id).exists():
+        return Response({"error": "Trigger word already exists."}, status=400)
+
+    trigger.word = word
+    trigger.save()
+    print(f"Trigger updated: {trigger.word}")
+    return Response(TriggerWordItemSerializer(trigger).data, status=200)
+
+
+@extend_schema(tags=["Trigger Word"])
+@api_view(["DELETE"])
+@permission_classes([AllowAny])
+def trigger_word_delete(request, trigger_id):
+    user_id = "test-user"
+    try:
+        trigger = TriggerWord.objects.get(id=trigger_id, user_id=user_id)
+        print(f"Trigger deleted: {trigger.word}")
+        trigger.delete()
+        return Response({"message": "Trigger word deleted."}, status=200)
+    except TriggerWord.DoesNotExist:
+        return Response({"error": "Trigger word not found."}, status=404)
+
+
+@extend_schema(tags=["Trigger Word"])
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def trigger_word_toggle(request, trigger_id):
+    user_id = "test-user"
+    try:
+        trigger = TriggerWord.objects.get(id=trigger_id, user_id=user_id)
+        trigger.is_active = not trigger.is_active
+        trigger.save()
+        return Response(TriggerWordItemSerializer(trigger).data, status=200)
+    except TriggerWord.DoesNotExist:
+        return Response({"error": "Trigger word not found."}, status=404)
+
+
+@extend_schema(tags=["Trigger Word"])
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def trigger_word_reset(request):
+    user_id = "test-user"
+    # Delete all custom trigger words
+    TriggerWord.objects.filter(user_id=user_id).delete()
+    # Create default trigger words
+    defaults = ["help", "emergency", "guardian"]
+    for word in defaults:
+        TriggerWord.objects.get_or_create(user_id=user_id, word=word)
+    triggers = TriggerWord.objects.filter(user_id=user_id)
+    return Response(TriggerWordItemSerializer(triggers, many=True).data, status=200)
+
+
+# Legacy endpoint for backward compatibility
 @extend_schema(
     request=TriggerWordSerializer,
     responses=TriggerWordSerializer,
@@ -75,11 +206,11 @@ def trigger_word(request):
     user_id = "test-user"
 
     if request.method == "GET":
-        trigger, _ = TriggerWord.objects.get_or_create(
-            user_id=user_id,
-            defaults={"word": "help"},
-        )
-        return Response({"word": trigger.word}, status=200)
+        # Return first active trigger word for backward compatibility
+        trigger = TriggerWord.objects.filter(user_id=user_id, is_active=True).first()
+        if not trigger:
+            trigger = TriggerWord.objects.create(user_id=user_id, word="help")
+        return Response({"trigger_word": trigger.word}, status=200)
 
     serializer = TriggerWordSerializer(data=request.data)
     if not serializer.is_valid():
@@ -87,10 +218,15 @@ def trigger_word(request):
 
     word = serializer.validated_data["word"]
 
-    TriggerWord.objects.update_or_create(
+    # Create or update the first trigger word
+    trigger, _ = TriggerWord.objects.get_or_create(
         user_id=user_id,
         defaults={"word": word},
     )
+    if not _:
+        trigger.word = word
+        trigger.is_active = True
+        trigger.save()
 
     return Response({"word": word}, status=200)
 
@@ -166,16 +302,21 @@ def upload_file_view(request):
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def get_file_url(request):
-
     file_name = request.query_params.get("file_name")
 
     if not file_name:
         return Response({"error": "file_name is required"}, status=400)
 
-    supabase = get_supabase()
-    bucket = supabase.storage.from_("distress-files")
-
-    url = bucket.get_public_url(file_name)
+    try:
+        supabase = get_supabase()
+        bucket = supabase.storage.from_("distress-files")
+        url = bucket.get_public_url(file_name)
+    except Exception as e:
+        logger.error(f"Failed to get file URL: {e}")
+        return Response(
+            {"error": "Unable to retrieve file URL. Please check your configuration."},
+            status=500,
+        )
 
     return Response(
         {
@@ -288,16 +429,14 @@ def analyze_voice(request):
 
     trigger_phrase_detected = payload.get("trigger_phrase_detected")
     transcript = payload.get("transcript") or ""
-    trigger_word = None
+    trigger_words = []
     try:
-        trigger_word_obj = TriggerWord.objects.filter(user_id=user_id or "test-user").first()
-        if trigger_word_obj:
-            trigger_word = trigger_word_obj.word
+        trigger_words = get_active_trigger_words(user_id or "test-user")
     except Exception:
-        trigger_word = None
+        trigger_words = []
 
     if not trigger_phrase_detected:
-        trigger_phrase_detected = bool(detect_wake_word(transcript, trigger_word))
+        trigger_phrase_detected = bool(detect_wake_word_multi(transcript, trigger_words))
 
     result = analyze_voice_event(
         trigger_phrase_detected=trigger_phrase_detected,
@@ -319,19 +458,26 @@ def analyze_voice(request):
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def events_list(request):
-    events = VoiceEvent.objects.all().order_by("-created_at")[:20]
-    data = []
-    for e in events:
-        data.append({
-            "id": e.id,
-            "transcript": e.transcript,
-            "classification": e.classification,
-            "risk_score": e.risk_score,
-            "telegram_sent": e.telegram_sent,
-            "alert_triggered": e.alert_triggered,
-            "created_at": e.created_at.isoformat() if e.created_at else "",
-        })
-    return Response(data, status=200)
+    try:
+        events = VoiceEvent.objects.all().order_by("-created_at")[:20]
+        data = []
+        for e in events:
+            data.append({
+                "id": e.id,
+                "transcript": e.transcript,
+                "classification": e.classification,
+                "risk_score": e.risk_score,
+                "telegram_sent": e.telegram_sent,
+                "alert_triggered": e.alert_triggered,
+                "created_at": e.created_at.isoformat() if e.created_at else "",
+            })
+        return Response(data, status=200)
+    except Exception as e:
+        logger.error(f"Failed to retrieve events: {e}")
+        return Response(
+            {"error": "Unable to retrieve events. Please try again later."},
+            status=500,
+        )
 
 
 # -----------------------------
@@ -392,7 +538,7 @@ def record_and_analyze(request):
         try:
             voice_features = extract_voice_features(audio_file, transcript)
         except Exception as e:
-            print(f"Voice feature extraction failed: {e}")
+            logger.warning(f"Voice feature extraction failed: {e}")
             voice_features = {
                 "pitch": 0.0,
                 "energy": 0.0,
@@ -401,7 +547,17 @@ def record_and_analyze(request):
             }
     
     # Use multimodal inference to combine text and voice signals
-    multimodal_result = compute_multimodal_risk(distress_result["risk_score"], voice_features)
+    try:
+        multimodal_result = compute_multimodal_risk(distress_result["risk_score"], voice_features)
+    except Exception as e:
+        logger.error(f"Multimodal inference failed: {e}")
+        multimodal_result = {
+            "risk_score": distress_result.get("risk_score", 50),
+            "alert_triggered": False,
+            "text_confidence": 0.0,
+            "voice_confidence": 0.0,
+            "debug": {"text_score": 0.0, "voice_score": 0.0}
+        }
     
     # Convert 0-100 risk score to 0.0-1.0 for compatibility with existing pipeline
     intensity_score_normalized = multimodal_result["risk_score"] / 100.0
@@ -451,7 +607,7 @@ def record_and_analyze(request):
             "timestamp": datetime.utcnow().isoformat()
         })
     except Exception as e:
-        print(f"Inference logging failed: {e}")
+        logger.warning(f"Inference logging failed: {e}")
 
     return Response(result, status=200)
 

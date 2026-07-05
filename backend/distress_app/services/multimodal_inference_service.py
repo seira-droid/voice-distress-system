@@ -48,21 +48,29 @@ def compute_multimodal_risk(text_risk_score: float, voice_features: Dict[str, fl
         # ------------------------
         # ADAPTIVE FUSION WEIGHTS
         # ------------------------
-        # Higher confidence → higher weight
-        # Normalize so weights sum to 1.0
-        total_confidence = text_confidence + voice_confidence
+        # Check if voice features are available (non-zero values)
+        has_voice_features = voice_features and any(v > 0 for v in voice_features.values())
         
-        if total_confidence > 0:
-            text_weight = text_confidence / total_confidence
-            voice_weight = voice_confidence / total_confidence
+        if has_voice_features:
+            # Higher confidence → higher weight
+            # Normalize so weights sum to 1.0
+            total_confidence = text_confidence + voice_confidence
+            
+            if total_confidence > 0:
+                text_weight = text_confidence / total_confidence
+                voice_weight = voice_confidence / total_confidence
+            else:
+                # Fallback to default 60/40 if no confidence
+                text_weight = 0.6
+                voice_weight = 0.4
+            
+            # Ensure minimum weight of 0.3 for each modality (prevent complete dismissal)
+            text_weight = max(0.3, min(0.7, text_weight))
+            voice_weight = 1.0 - text_weight
         else:
-            # Fallback to default 60/40 if no confidence
-            text_weight = 0.6
-            voice_weight = 0.4
-        
-        # Ensure minimum weight of 0.3 for each modality (prevent complete dismissal)
-        text_weight = max(0.3, min(0.7, text_weight))
-        voice_weight = 1.0 - text_weight
+            # No voice features available - use text-only score
+            text_weight = 1.0
+            voice_weight = 0.0
         
         # ------------------------
         # MULTIMODAL FUSION

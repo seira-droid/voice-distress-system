@@ -6,8 +6,8 @@ from backend.distress_app.services.ai_service import analyze_voice_event, safe_u
 from backend.distress_app.models import EmergencyContact, VoiceEvent, RiskAssessment, AlertLog
 
 @pytest.fixture
-def mock_httpx_post():
-    with mock.patch("httpx.post") as mock_post:
+def mock_requests_post():
+    with mock.patch("requests.post") as mock_post:
         yield mock_post
 
 @pytest.fixture
@@ -38,30 +38,31 @@ def test_telegram_client_simulated_when_no_token():
         assert success is True
 
 @pytest.mark.django_db
-def test_telegram_client_send_success(mock_httpx_post):
+def test_telegram_client_send_success(mock_requests_post):
     """Test successful message sending via Telegram bot API."""
     mock_response = mock.Mock()
     mock_response.status_code = 200
-    mock_httpx_post.return_value = mock_response
+    mock_response.json.return_value = {"ok": True}
+    mock_requests_post.return_value = mock_response
 
     with mock.patch.object(settings, "TELEGRAM_BOT_TOKEN", "mock-token"):
         client = TelegramClient()
         success = client.send_message(chat_id="123456", text="Emergency!", retries=1)
         assert success is True
-        mock_httpx_post.assert_called_once()
+        mock_requests_post.assert_called_once()
         # Verify call arguments
-        call_args = mock_httpx_post.call_args
+        call_args = mock_requests_post.call_args
         assert call_args[0][0] == "https://api.telegram.org/botmock-token/sendMessage"
         assert call_args[1]["json"]["chat_id"] == "123456"
         assert call_args[1]["json"]["text"] == "Emergency!"
 
 @pytest.mark.django_db
-def test_telegram_client_retry_and_fail(mock_httpx_post):
+def test_telegram_client_retry_and_fail(mock_requests_post):
     """Test that TelegramClient retries on network/HTTP errors and eventually returns False."""
     mock_response = mock.Mock()
     mock_response.status_code = 500
     mock_response.text = "Internal Server Error"
-    mock_httpx_post.return_value = mock_response
+    mock_requests_post.return_value = mock_response
 
     with mock.patch.object(settings, "TELEGRAM_BOT_TOKEN", "mock-token"), \
          mock.patch("time.sleep") as mock_sleep:  # Mock sleep to run fast
@@ -69,16 +70,17 @@ def test_telegram_client_retry_and_fail(mock_httpx_post):
         client = TelegramClient()
         success = client.send_message(chat_id="123456", text="Emergency!", retries=3)
         assert success is False
-        assert mock_httpx_post.call_count == 3
+        assert mock_requests_post.call_count == 3
         assert mock_sleep.call_count == 2
 
 @pytest.mark.django_db
-def test_voice_distress_pipeline_triggers_alerts(mock_ai_client, mock_httpx_post):
+def test_voice_distress_pipeline_triggers_alerts(mock_ai_client, mock_requests_post):
     """Test the complete Voice -> AI -> Telegram Alert pipeline."""
     # Mock successful HTTP request to Telegram Bot API
     mock_response = mock.Mock()
     mock_response.status_code = 200
-    mock_httpx_post.return_value = mock_response
+    mock_response.json.return_value = {"ok": True}
+    mock_requests_post.return_value = mock_response
 
     user_id = "test-user-uuid"
     db_user_id = safe_uuid(user_id)
@@ -126,8 +128,8 @@ def test_voice_distress_pipeline_triggers_alerts(mock_ai_client, mock_httpx_post
         assert "https://www.google.com/maps?q=37.7749,-122.4194" in alert_log.message_sent
 
         # Check Telegram API call was made
-        mock_httpx_post.assert_called_once()
-        post_json = mock_httpx_post.call_args[1]["json"]
+        mock_requests_post.assert_called_once()
+        post_json = mock_requests_post.call_args[1]["json"]
         assert post_json["chat_id"] == "99887766"
         assert "User (test-user-uuid)" in post_json["text"]
         assert "*Risk Score:* 92%" in post_json["text"]

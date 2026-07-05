@@ -6,7 +6,7 @@ Logs structured inference data for future ML model training.
 import json
 import os
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 
 logger = logging.getLogger(__name__)
@@ -84,14 +84,16 @@ def _passes_quality_check(data: Dict[str, Any]) -> bool:
     # Exclude if transcription is empty
     transcription = data.get("transcription", "").strip()
     if not transcription:
+        logger.warning("Quality check failed: transcription is empty")
         return False
     
     # Exclude if risk_score is null
     risk_score = data.get("final_risk_score")
     if risk_score is None:
+        logger.warning("Quality check failed: risk_score is None")
         return False
     
-    # Exclude if voice feature extraction failed (all zeros)
+    # Warn if voice feature extraction failed (all zeros), but don't reject
     voice_features = data.get("voice_features", {})
     if voice_features:
         all_zeros = all(
@@ -99,7 +101,7 @@ def _passes_quality_check(data: Dict[str, Any]) -> bool:
             for feature in ["pitch", "energy", "speech_rate", "pause_ratio"]
         )
         if all_zeros:
-            return False
+            logger.info("Voice features unavailable for this inference. Saving with zero-valued features.")
     
     return True
 
@@ -145,11 +147,34 @@ def _log_to_database(log_entry: Dict[str, Any]) -> None:
             label=log_entry["label"],
             dataset_version=log_entry["dataset_version"]
         )
+        
     except ImportError:
         # Model doesn't exist yet, skip database logging
         raise Exception("InferenceLog model not found")
 
 
+def _log_to_file(log_entry: Dict[str, Any]) -> bool:
+    """
+    Log inference data to file as fallback.
+    
+    Args:
+        log_entry: Structured log entry
+        
+    Returns:
+        bool: True if file logging succeeded
+    """
+    try:
+        log_dir = os.path.join(os.path.dirname(__file__), "..", "..", "logs")
+        os.makedirs(log_dir, exist_ok=True)
+        log_file = os.path.join(log_dir, "inference_logs.jsonl")
+        
+        with open(log_file, "a", encoding="utf-8") as f:
+            f.write(json.dumps(log_entry) + "\n")
+        
+        return True
+    except Exception as e:
+        logger.error(f"File logging failed: {e}")
+        return False
 
 
 def get_inference_logs(limit: int = 100) -> list:

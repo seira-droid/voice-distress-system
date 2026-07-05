@@ -4,64 +4,108 @@ Multi-layer reasoning system for computing risk scores from transcripts.
 """
 
 # ----------------------------
-# LAYER 1: SEMANTIC KEYWORDS
+# LAYER 1: CRITICAL EMERGENCY PHRASES
+# These phrases indicate immediate, life-threatening situations
+# ----------------------------
+CRITICAL_PHRASES = {
+    # Kidnapping/captivity - highest priority
+    "i have been kidnapped": 75,
+    "kidnapped": 70,
+    "they kidnapped me": 70,
+    
+    # Direct danger/threat to life
+    "i am in danger": 65,
+    "i am not safe": 60,
+    "someone is attacking me": 65,
+    "someone is trying to hurt me": 60,
+    
+    # Following/stalking with threat
+    "someone is following me": 60,
+    
+    # Police/crime in progress
+    "call the police": 55,
+    "police": 50,
+    "crime": 45,
+}
+
+# ----------------------------
+# LAYER 2: HIGH EMERGENCY PHRASES
+# These phrases indicate serious distress situations
+# ----------------------------
+HIGH_EMERGENCY_PHRASES = {
+    "save me": 40,
+    "please help": 35,
+    "help me": 35,
+    "i need help": 30,
+    "emergency": 30,
+    "weapon": 35,
+    "gun": 40,
+    "knife": 35,
+    "attacked": 35,
+    "attack": 30,
+    "hurt": 25,
+    "bleeding": 30,
+    "trapped": 30,
+    "can't breathe": 35,
+    "cant breathe": 35,
+}
+
+# ----------------------------
+# LAYER 3: DISTRESS KEYWORDS
+# General distress indicators
 # ----------------------------
 DISTRESS_KEYWORDS = {
-    "help": 10,
-    "save me": 15,
-    "emergency": 15,
-    "danger": 12,
-    "unsafe": 10,
-    "hurt": 10,
-    "scared": 8,
-    "afraid": 8,
-    "following me": 12,
-    "someone following me": 15,
-    "hurting": 10,
-    "attack": 12,
-    "kill": 15,
-    "weapon": 15,
-    "kidnap": 15,
-    "trapped": 12,
-    "alone": 6,
-    "bleeding": 12,
-    "fire": 10,
-    "run": 8,
-    "stop": 6,
-    "no": 5,
-    "please": 5,
-}
-
-URGENCY_KEYWORDS = {
-    "now": 8,
-    "immediately": 10,
-    "quickly": 8,
-    "fast": 6,
-    "hurry": 8,
-    "someone": 5,
-    "anybody": 5,
-    "can't breathe": 12,
-    "cant breathe": 12,
+    "help": 20,
+    "save": 15,
+    "danger": 15,
+    "unsafe": 12,
+    "hurting": 12,
+    "kill": 25,
+    "kidnap": 25,
+    "trapped": 15,
+    "alone": 10,
+    "fire": 15,
+    "run": 12,
+    "stop": 10,
 }
 
 # ----------------------------
-# LAYER 2: EMOTIONAL SIGNALS
+# LAYER 4: URGENCY INDICATORS
+# Time-sensitive language
+# ----------------------------
+URGENCY_KEYWORDS = {
+    "now": 15,
+    "immediately": 20,
+    "quickly": 15,
+    "fast": 12,
+    "hurry": 15,
+    "anybody": 10,
+}
+
+# ----------------------------
+# LAYER 5: EMOTIONAL SIGNALS
+# Emotional state indicators
 # ----------------------------
 EMOTIONAL_KEYWORDS = {
-    "panic": 10,
-    "crying": 8,
-    "anxious": 7,
-    "terrified": 12,
-    "shaking": 8,
-    "trembling": 8,
-    "desperate": 10,
-    "horrified": 12,
-    "screaming": 10,
-    "sobbing": 8,
+    "panic": 25,
+    "crying": 20,
+    "anxious": 15,
+    "terrified": 25,
+    "scared": 30,
+    "afraid": 25,
+    "shaking": 20,
+    "trembling": 20,
+    "desperate": 20,
+    "horrified": 25,
+    "screaming": 20,
+    "sobbing": 15,
 }
 
+# ----------------------------
+# LAYER 6: INTENSITY MARKERS
+# Repetition and emphasis indicators
+# ----------------------------
 INTENSITY_MARKERS = [
-    "!!!",
     "!!!",
     "help help help",
     "emergency emergency",
@@ -69,7 +113,7 @@ INTENSITY_MARKERS = [
 
 
 # ----------------------------
-# LAYER 3: CONTEXT SCALING
+# CONTEXT SCALING
 # ----------------------------
 def _apply_context_scaling(base_score, transcript):
     """
@@ -81,14 +125,14 @@ def _apply_context_scaling(base_score, transcript):
     
     word_count = len(transcript.split())
     
-    # Scale factor: 1.0 at 5 words, up to 1.2 at 50+ words
+    # Scale factor: 1.0 at 5 words, up to 1.3 at 50+ words
     if word_count <= 5:
         scale = 1.0
     elif word_count >= 50:
-        scale = 1.2
+        scale = 1.3
     else:
-        # Linear interpolation between 1.0 and 1.2
-        scale = 1.0 + ((word_count - 5) / 45) * 0.2
+        # Linear interpolation between 1.0 and 1.3
+        scale = 1.0 + ((word_count - 5) / 45) * 0.3
     
     return base_score * scale
 
@@ -98,7 +142,7 @@ def _apply_context_scaling(base_score, transcript):
 # ----------------------------
 def analyze_distress(transcript):
     """
-    Compute risk_score using 3-layer analysis system.
+    Compute risk_score using 6-layer analysis system.
     
     Args:
         transcript (str): The transcribed text from STT
@@ -116,55 +160,68 @@ def analyze_distress(transcript):
         }
     
     text = transcript.lower()
-    words = text.split()
     
     # ------------------------
-    # LAYER 1: Semantic Keywords
+    # LAYER 1: Critical Emergency Phrases
     # ------------------------
     layer1_score = 0
     
-    # Check distress keywords
-    for keyword, weight in DISTRESS_KEYWORDS.items():
-        if keyword in text:
+    for phrase, weight in CRITICAL_PHRASES.items():
+        if phrase in text:
             layer1_score += weight
-    
-    # Check urgency keywords
-    for keyword, weight in URGENCY_KEYWORDS.items():
-        if keyword in text:
-            layer1_score += weight
-    
-    # Cap layer 1 at 50 points
-    layer1_score = min(layer1_score, 50)
     
     # ------------------------
-    # LAYER 2: Emotional Signals
+    # LAYER 2: High Emergency Phrases
     # ------------------------
     layer2_score = 0
     
-    # Check emotional keywords
+    for phrase, weight in HIGH_EMERGENCY_PHRASES.items():
+        if phrase in text:
+            layer2_score += weight
+    
+    # ------------------------
+    # LAYER 3: Distress Keywords
+    # ------------------------
+    layer3_score = 0
+    
+    for keyword, weight in DISTRESS_KEYWORDS.items():
+        if keyword in text:
+            layer3_score += weight
+    
+    # ------------------------
+    # LAYER 4: Urgency Keywords
+    # ------------------------
+    layer4_score = 0
+    
+    for keyword, weight in URGENCY_KEYWORDS.items():
+        if keyword in text:
+            layer4_score += weight
+    
+    # ------------------------
+    # LAYER 5: Emotional Signals
+    # ------------------------
+    layer5_score = 0
+    
     for keyword, weight in EMOTIONAL_KEYWORDS.items():
         if keyword in text:
-            layer2_score += weight
+            layer5_score += weight
     
     # Check intensity markers (repeated exclamations, repetitions)
     for marker in INTENSITY_MARKERS:
         if marker in text:
-            layer2_score += 8
+            layer5_score += 10
     
     # Count exclamation marks
     exclamation_count = text.count("!")
     if exclamation_count >= 3:
-        layer2_score += 10
+        layer5_score += 15
     elif exclamation_count >= 1:
-        layer2_score += 5
-    
-    # Cap layer 2 at 30 points
-    layer2_score = min(layer2_score, 30)
+        layer5_score += 8
     
     # ------------------------
-    # LAYER 3: Context Scaling
+    # LAYER 6: Context Scaling
     # ------------------------
-    combined_score = layer1_score + layer2_score
+    combined_score = layer1_score + layer2_score + layer3_score + layer4_score + layer5_score
     scaled_score = _apply_context_scaling(combined_score, transcript)
     
     # ------------------------
