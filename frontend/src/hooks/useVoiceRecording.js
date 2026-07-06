@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import microphoneService from '../services/microphoneService';
 import useSpeechRecognition from './useSpeechRecognition';
 
-const API_BASE = 'http://localhost:8000';
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000');
 const API_TIMEOUT_MS = 30000; // 30 second timeout for API requests
 
 let conversationIdCounter = 0;

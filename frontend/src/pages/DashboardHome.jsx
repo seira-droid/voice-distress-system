@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import VoiceAssistant from '../components/VoiceAssistant';
 import { Shield, Activity, AlertTriangle, BarChart3, Clock, Users } from 'lucide-react';
 
-const API_BASE = 'http://localhost:8000';
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000');
 
 function DashboardHome() {
   const [events, setEvents] = useState([]);
