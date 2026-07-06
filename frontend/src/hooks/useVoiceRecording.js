@@ -381,6 +381,7 @@ export function useVoiceRecording({ onStateChange, speakResponse }) {
     const formData = new FormData();
     formData.append('audio', audioBlob, 'recording.webm');
     formData.append('trigger_phrase_detected', 'true');
+    formData.append('transcript', speechRec.finalTranscript || speechRec.interimTranscript || '');
 
     try {
       onStateChange?.('processing');

@@ -524,10 +524,19 @@ def record_and_analyze(request):
 
     if audio_file:
         try:
-            speech_data = transcribe_audio_bytes(audio_file.read(), filename=audio_file.name)
-            transcript = speech_data.get("transcript", transcript or "")
+            # If transcript is empty or too short, try to use STT
+            if not transcript or len(transcript.strip()) < 5:
+                speech_data = transcribe_audio_bytes(audio_file.read(), filename=audio_file.name)
+                transcript = speech_data.get("transcript", transcript or "")
+            
+            # Reset file pointer for feature extraction
+            if hasattr(audio_file, 'seek'):
+                audio_file.seek(0)
         except Exception as e:
-            return Response({"error": "Transcription failed", "detail": str(e)}, status=500)
+            logger.warning(f"Transcription failed: {e}")
+            # Continue with existing transcript rather than crashing the whole API
+            if hasattr(audio_file, 'seek'):
+                audio_file.seek(0)
 
     # Use new multi-layer AI distress analysis engine
     distress_result = analyze_distress(transcript)
