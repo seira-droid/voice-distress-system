@@ -273,6 +273,7 @@ function VoiceAssistant({ triggerWords, onTriggerWordsChange }) {
         recipients={recording.alertRecipients}
         incidentInfo={recording.alertIncident}
         deliveryError={recording.alertDeliveryError}
+        telegramDelivered={recording.telegramDelivered}
         onDismiss={recording.clearResults}
       />
 
