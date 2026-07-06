@@ -1,6 +1,9 @@
 // API utility with automatic token refresh
 
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'https://voice-distress-system.onrender.com');
+let API_BASE = (import.meta.env.VITE_API_BASE_URL || 'https://voice-distress-system.onrender.com');
+if (API_BASE.includes('localhost') && typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+  API_BASE = 'https://voice-distress-system.onrender.com';
+}
 
 // Store the refresh function globally so we can use it in interceptors
 let refreshTokenFunction = null;

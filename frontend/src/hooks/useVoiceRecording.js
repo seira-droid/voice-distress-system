@@ -2,7 +2,10 @@ import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import microphoneService from '../services/microphoneService';
 import useSpeechRecognition from './useSpeechRecognition';
 
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'https://voice-distress-system.onrender.com');
+let API_BASE = (import.meta.env.VITE_API_BASE_URL || 'https://voice-distress-system.onrender.com');
+if (API_BASE.includes('localhost') && typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+  API_BASE = 'https://voice-distress-system.onrender.com';
+}
 const API_TIMEOUT_MS = 30000; // 30 second timeout for API requests
 
 let conversationIdCounter = 0;
@@ -409,6 +412,7 @@ export function useVoiceRecording({ onStateChange, speakResponse }) {
         } catch (parseErr) {
           // Response body couldn't be parsed, use default message
         }
+        console.error("Backend returned non-200 status:", response.status, errorMessage);
         setError(errorMessage);
         onStateChange?.('error');
         return;
@@ -418,6 +422,7 @@ export function useVoiceRecording({ onStateChange, speakResponse }) {
 
       // Validate response structure
       if (!result || typeof result !== 'object') {
+        console.error("Invalid response from server:", result);
         setError('Invalid response from server. Please try again.');
         onStateChange?.('error');
         return;
@@ -461,6 +466,8 @@ export function useVoiceRecording({ onStateChange, speakResponse }) {
       }
 
     } catch (err) {
+      console.error("Fetch failed! API_BASE was:", API_BASE);
+      console.error("Fetch error details:", err);
       if (err.name === 'AbortError') {
         setError('Request timed out. The server is taking too long to respond. Please try again.');
       } else if (err instanceof TypeError && err.message.includes('fetch')) {
