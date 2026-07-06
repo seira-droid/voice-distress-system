@@ -389,14 +389,17 @@ export function useVoiceRecording({ onStateChange, speakResponse }) {
     try {
       onStateChange?.('processing');
       
-      // Create timeout controller
-      const controller = new AbortController();
-      timeoutRef.current = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
-      
+      // Get auth token
+      const token = localStorage.getItem('access_token');
+      const headers = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const response = await fetch(`${API_BASE}/api/v1/voice/record-analyze/`, {
         method: 'POST',
+        headers: headers,
         body: formData,
-        signal: controller.signal,
       });
       
       clearTimeout(timeoutRef.current);
