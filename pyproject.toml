@@ -3,6 +3,7 @@ name = "voice-distress-system"
 version = "0.1.0"
 description = "Voice Distress System Backend"
 dependencies = []
+
 [tool.pytest.ini_options]
 addopts = "--cov=backend --cov-report=term-missing"
 python_files = "test_*.py"
