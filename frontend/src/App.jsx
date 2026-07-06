@@ -15,7 +15,7 @@ import ForgotPassword from './pages/ForgotPassword';
 import useVoiceState from './hooks/useVoiceState';
 import './App.css';
 
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000');
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'https://voice-distress-system.onrender.com');
 
 // Protected Route component
 function ProtectedRoute({ children }) {

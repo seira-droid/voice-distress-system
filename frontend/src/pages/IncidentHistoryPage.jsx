@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, Filter, ChevronLeft, ChevronRight, AlertCircle, CheckCircle } from 'lucide-react';
 import IncidentDetail from '../components/IncidentDetail';
 
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000');
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'https://voice-distress-system.onrender.com');
 
 function IncidentHistoryPage() {
   const [incidents, setIncidents] = useState([]);
