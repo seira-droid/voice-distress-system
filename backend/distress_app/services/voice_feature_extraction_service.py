@@ -8,12 +8,15 @@ from typing import Dict, Optional
 
 # Try to import librosa and numpy, but handle gracefully if not available
 try:
+    # We are disabling librosa on the server because parsing WebM blobs 
+    # without ffmpeg installed causes C-level segmentation faults,
+    # which instantly crashes the Render backend resulting in 502 Bad Gateway.
     import numpy as np
-    import librosa
-    LIBROSA_AVAILABLE = True
+    # import librosa
+    LIBROSA_AVAILABLE = False
 except ImportError:
     LIBROSA_AVAILABLE = False
-    print("Warning: librosa not installed. Voice feature extraction will return zeros.")
+    print("Warning: librosa disabled. Voice feature extraction will return zeros.")
 
 
 def extract_voice_features(audio_file, transcript: str = "") -> Dict[str, float]:
