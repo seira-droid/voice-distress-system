@@ -24,6 +24,7 @@ from .auth_views import (
     me,
     update_profile,
     update_password,
+    run_migrations_endpoint,
 )
 
 router = DefaultRouter()
@@ -53,4 +54,6 @@ urlpatterns = [
     path("auth/profile/", update_profile, name="auth-profile"),
     path("auth/password/", update_password, name="auth-password"),
     path("auth/token/refresh/", TokenRefreshView.as_view(), name="auth-token-refresh"),
+    path("auth/migrate/", run_migrations_endpoint, name="auth-migrate"),
 ]
+

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { setRefreshTokenFunction } from '../utils/api';
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
@@ -22,7 +23,7 @@ export function AuthProvider({ children }) {
       if (token && storedUser) {
         try {
           // Validate token with backend
-          const response = await fetch('http://localhost:8000/api/v1/auth/me/', {
+          const response = await fetch(`${API_BASE}/api/v1/auth/me/`, {
             headers: {
               'Authorization': `Bearer ${token}`,
             },
@@ -68,7 +69,7 @@ export function AuthProvider({ children }) {
       // Call backend logout to blacklist refresh token
       const refreshToken = localStorage.getItem('refresh_token');
       if (refreshToken) {
-        await fetch('http://localhost:8000/api/v1/auth/logout/', {
+        await fetch(`${API_BASE}/api/v1/auth/logout/`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -94,7 +95,7 @@ export function AuthProvider({ children }) {
       throw new Error('No refresh token available');
     }
 
-    const response = await fetch('http://localhost:8000/api/v1/auth/token/refresh/', {
+    const response = await fetch(`${API_BASE}/api/v1/auth/token/refresh/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

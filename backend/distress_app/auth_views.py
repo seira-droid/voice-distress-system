@@ -208,3 +208,15 @@ def update_password(request):
     request.user.save()
 
     return Response({'message': 'Password updated successfully'}, status=status.HTTP_200_OK)
+
+
+@api_view(['GET', 'POST'])
+@permission_classes([AllowAny])
+def run_migrations_endpoint(request):
+    """Trigger DB migrations programmatically without Render shell access"""
+    from django.core.management import call_command
+    try:
+        call_command('migrate', interactive=False)
+        return Response({'message': 'Migrations executed successfully!'}, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
