@@ -3,7 +3,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, LogIn, Shield, CheckCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+let API_BASE = (import.meta.env.VITE_API_BASE_URL || 'https://voice-distress-system.onrender.com');
+if (API_BASE.includes('localhost') && typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+  API_BASE = 'https://voice-distress-system.onrender.com';
+}
+
 
 function Login() {
   const navigate = useNavigate();

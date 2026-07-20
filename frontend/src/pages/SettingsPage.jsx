@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Settings, Bell, Shield, Key, Mic, Volume2, Palette, Globe, User, Lock, Users, Send } from 'lucide-react';
 
-const API_BASE = 'http://localhost:8000';
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'https://voice-distress-system.onrender.com');
 
 function SettingsPage() {
   const [settings, setSettings] = useState({

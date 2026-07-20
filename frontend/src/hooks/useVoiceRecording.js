@@ -2,7 +2,10 @@ import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import microphoneService from '../services/microphoneService';
 import useSpeechRecognition from './useSpeechRecognition';
 
-const API_BASE = 'http://localhost:8000';
+let API_BASE = (import.meta.env.VITE_API_BASE_URL || 'https://voice-distress-system.onrender.com');
+if (API_BASE.includes('localhost') && typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+  API_BASE = 'https://voice-distress-system.onrender.com';
+}
 const API_TIMEOUT_MS = 30000; // 30 second timeout for API requests
 
 let conversationIdCounter = 0;
@@ -381,18 +384,22 @@ export function useVoiceRecording({ onStateChange, speakResponse }) {
     const formData = new FormData();
     formData.append('audio', audioBlob, 'recording.webm');
     formData.append('trigger_phrase_detected', 'true');
+    formData.append('transcript', speechRec.finalTranscript || speechRec.interimTranscript || '');
 
     try {
       onStateChange?.('processing');
       
-      // Create timeout controller
-      const controller = new AbortController();
-      timeoutRef.current = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
-      
+      // Get auth token
+      const token = localStorage.getItem('access_token');
+      const headers = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const response = await fetch(`${API_BASE}/api/v1/voice/record-analyze/`, {
         method: 'POST',
+        headers: headers,
         body: formData,
-        signal: controller.signal,
       });
       
       clearTimeout(timeoutRef.current);
@@ -408,6 +415,7 @@ export function useVoiceRecording({ onStateChange, speakResponse }) {
         } catch (parseErr) {
           // Response body couldn't be parsed, use default message
         }
+        console.error("Backend returned non-200 status:", response.status, errorMessage);
         setError(errorMessage);
         onStateChange?.('error');
         return;
@@ -417,6 +425,7 @@ export function useVoiceRecording({ onStateChange, speakResponse }) {
 
       // Validate response structure
       if (!result || typeof result !== 'object') {
+        console.error("Invalid response from server:", result);
         setError('Invalid response from server. Please try again.');
         onStateChange?.('error');
         return;
@@ -460,6 +469,8 @@ export function useVoiceRecording({ onStateChange, speakResponse }) {
       }
 
     } catch (err) {
+      console.error("Fetch failed! API_BASE was:", API_BASE);
+      console.error("Fetch error details:", err);
       if (err.name === 'AbortError') {
         setError('Request timed out. The server is taking too long to respond. Please try again.');
       } else if (err instanceof TypeError && err.message.includes('fetch')) {

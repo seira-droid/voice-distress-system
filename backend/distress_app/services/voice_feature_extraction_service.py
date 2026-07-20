@@ -8,12 +8,15 @@ from typing import Dict, Optional
 
 # Try to import librosa and numpy, but handle gracefully if not available
 try:
+    # We are disabling librosa on the server because parsing WebM blobs 
+    # without ffmpeg installed causes C-level segmentation faults,
+    # which instantly crashes the Render backend resulting in 502 Bad Gateway.
     import numpy as np
-    import librosa
-    LIBROSA_AVAILABLE = True
+    # import librosa
+    LIBROSA_AVAILABLE = False
 except ImportError:
     LIBROSA_AVAILABLE = False
-    print("Warning: librosa not installed. Voice feature extraction will return zeros.")
+    print("Warning: librosa disabled. Voice feature extraction will return zeros.")
 
 
 def extract_voice_features(audio_file, transcript: str = "") -> Dict[str, float]:
@@ -105,32 +108,26 @@ def extract_voice_features(audio_file, transcript: str = "") -> Dict[str, float]
 
 def _extract_pitch(audio_data, sample_rate: int) -> float:
     """
-    Extract mean pitch (fundamental frequency) using librosa.pyin.
-    
-    Returns:
-        float: Mean pitch in Hz (0 if no pitch detected)
+    Extract mean pitch (fundamental frequency) using a fast zero-crossing method
+    instead of librosa.pyin to avoid OOM crashes on small servers.
     """
     if not LIBROSA_AVAILABLE:
         return 0.0
     
     try:
-        # Use pyin for pitch tracking (more accurate than yin)
-        f0, voiced_flag, voiced_probs = librosa.pyin(
-            audio_data,
-            fmin=librosa.note_to_hz('C2'),  # ~65 Hz
-            fmax=librosa.note_to_hz('C7'),  # ~2093 Hz
-            sr=sample_rate
-        )
-        
-        # Filter out unvoiced frames (NaN values)
-        f0_voiced = f0[~np.isnan(f0)]
-        
-        if len(f0_voiced) == 0:
+        # Avoid librosa.pyin (causes OOM kills on free tier servers)
+        # We can use a lightweight zero-crossing rate approximation
+        zcr = librosa.feature.zero_crossing_rate(audio_data)[0]
+        if len(zcr) == 0:
             return 0.0
+            
+        # Very rough approximation of pitch from ZCR for prototype purposes
+        # ZCR = 2 * F0 / sr  => F0 = ZCR * sr / 2
+        mean_zcr = np.mean(zcr)
+        approx_pitch = float(mean_zcr * sample_rate / 2)
         
-        # Return mean pitch
-        mean_pitch = np.mean(f0_voiced)
-        return float(mean_pitch)
+        # Clamp to realistic human voice range (65Hz - 2093Hz)
+        return float(np.clip(approx_pitch, 65.0, 2093.0))
         
     except Exception as e:
         print(f"Pitch extraction error: {e}")

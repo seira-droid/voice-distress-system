@@ -28,7 +28,7 @@ const TIMELINE_STEPS = [
   { key: 'delivered', label: 'Delivered', icon: '✅' },
 ];
 
-function AlertStatus({ status, sentAt, recipients, incidentInfo, deliveryError, onDismiss }) {
+function AlertStatus({ status, sentAt, recipients, incidentInfo, deliveryError, telegramDelivered, onDismiss }) {
   // --- No alert required state ---
   if (status === 'no-alert') {
     return (
@@ -110,7 +110,7 @@ function AlertStatus({ status, sentAt, recipients, incidentInfo, deliveryError, 
                 <div className="timeline-content">
                   <span className="timeline-label">{step.label}</span>
                   <span className="timeline-status">
-                    {stepStatus === 'failed' ? 'Failed' : stepStatus === 'pending' ? 'Pending' : 'Complete'}
+                    {step.key === 'delivered' ? (telegramDelivered ? 'Complete' : 'Pending/Failed') : (stepStatus === 'failed' ? 'Failed' : stepStatus === 'pending' ? 'Pending' : 'Complete')}
                   </span>
                 </div>
               </div>
@@ -235,7 +235,9 @@ function AlertStatus({ status, sentAt, recipients, incidentInfo, deliveryError, 
             </div>
             <div className="timeline-content">
               <span className="timeline-label">{step.label}</span>
-              <span className="timeline-status">Complete</span>
+              <span className="timeline-status">
+                {step.key === 'delivered' ? (telegramDelivered ? 'Complete' : 'Pending/Failed') : 'Complete'}
+              </span>
             </div>
           </div>
         ))}

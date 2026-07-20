@@ -215,7 +215,7 @@ function VoiceAssistant({ triggerWords, onTriggerWordsChange }) {
       return 'Alert sent ✓';
     }
     if (voiceState.state === 'error') {
-      return 'Error occurred. Please refresh the page.';
+      return recording.error || 'Error occurred. Please refresh the page.';
     }
     return 'Processing...';
   };
@@ -273,6 +273,7 @@ function VoiceAssistant({ triggerWords, onTriggerWordsChange }) {
         recipients={recording.alertRecipients}
         incidentInfo={recording.alertIncident}
         deliveryError={recording.alertDeliveryError}
+        telegramDelivered={recording.telegramDelivered}
         onDismiss={recording.clearResults}
       />
 
