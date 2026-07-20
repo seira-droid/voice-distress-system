@@ -9,15 +9,21 @@ env = environ.Env()
 
 environ.Env.read_env(BASE_DIR.parent / ".env")
 
-SECRET_KEY = env("SECRET_KEY")
+SECRET_KEY = env("SECRET_KEY", default="django-insecure-voice-distress-system-secret-key-2026")
 DEBUG = env.bool("DEBUG", default=False)
 
-ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
+ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["*"])
+render_domain = env("RENDER_EXTERNAL_HOSTNAME", default="")
+if render_domain and render_domain not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(render_domain)
+
 railway_domain = env("RAILWAY_PUBLIC_DOMAIN", default="")
-if railway_domain:
+if railway_domain and railway_domain not in ALLOWED_HOSTS:
     ALLOWED_HOSTS.append(railway_domain)
 
-CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
+CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=["https://*.onrender.com", "https://*.vercel.app"])
+if render_domain:
+    CSRF_TRUSTED_ORIGINS.append(f"https://{render_domain}")
 if railway_domain:
     CSRF_TRUSTED_ORIGINS.append(f"https://{railway_domain}")
 
@@ -43,7 +49,6 @@ MIDDLEWARE = [
     'whitenoise.middleware.WhiteNoiseMiddleware',
 
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -70,9 +75,10 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
+default_db_url = f"sqlite:///{BASE_DIR / 'db.sqlite3'}"
 DATABASES = {
     "default": dj_database_url.parse(
-        env("DATABASE_URL", default="sqlite:///db.sqlite3")
+        env("DATABASE_URL", default=default_db_url)
     )
 }
 
